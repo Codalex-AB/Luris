@@ -182,6 +182,7 @@
     render();
   }
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+  function sortHand(hand) { hand.sort((a, b) => (a.joker ? 99 : a.value) - (b.joker ? 99 : b.value) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)); }
   function topDiscard() { return state.discard[state.discard.length - 1]; }
   function isHumanTurn() { return state.turn === 0 && !state.over; }
   function faceUpCount(player) { return state.sets[player].flatMap(s => s.cards).filter(c => c.faceUp).length; }
@@ -198,6 +199,7 @@
     return `<div class="${classes.join(' ')}"${click}><span class="corner">${c.value}${c.suit}</span><span class="suit">${c.suit}</span></div>`;
   }
   function render() {
+    sortHand(state.hands[0]);
     $('drawCount').textContent = state.deck.length;
     $('discardCount').textContent = state.discard.length;
     $('discardCard').innerHTML = topDiscard() ? cardHTML({...topDiscard(), faceUp: true}, isHumanTurn() && state.phase === 'draw') : '';
