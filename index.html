@@ -70,8 +70,9 @@
     .card.face-down { cursor: pointer; }
     .card.face-down::after { content: "✦"; font-size: 20px; opacity: .78; }
     .card.selected, .hand-card.selected .card { outline: 3px solid var(--gold-bright); outline-offset: 1px; transform: translateY(-5px); }
-    .card .corner { position: absolute; top: 3px; left: 5px; font-size: 10px; line-height: 1; }
-    .card .suit { font-size: 17px; opacity: .9; }
+    .card .corner { position: absolute; top: 4px; left: 5px; font-size: 13px; line-height: 1; }
+    .card .rank { font-size: 27px; line-height: 1; letter-spacing: -.04em; }
+    .card .suit { position: absolute; right: 5px; bottom: 3px; font-size: 14px; line-height: 1; opacity: .9; }
     .card.joker { color: #a85b39; font-size: 12px; letter-spacing: .03em; }
     .card.joker .suit { font-size: 19px; color: var(--gold); }
     .hand-wrap { padding: 8px 10px 5px; border: 1px solid rgba(255,255,255,.13); border-radius: 14px; background: rgba(5, 16, 12, .2); overflow: hidden; }
@@ -124,8 +125,9 @@
       .hand { grid-template-columns: repeat(auto-fit, minmax(23px, var(--card-w))); min-height: var(--card-h); max-height: 120px; }
       .set { min-height: 48px; padding: 3px; }
       .set .card { width: 35px; height: 50px; font-size: 16px; }
-      .set .card .suit { font-size: 14px; }
-      .set .card .corner { font-size: 8px; }
+      .set .card .rank { font-size: 21px; }
+      .set .card .suit { font-size: 11px; }
+      .set .card .corner { font-size: 11px; }
       .action { min-height: 32px; padding: 5px 9px; font-size: 12px; }
     }
     @media (max-height: 650px) {
@@ -174,12 +176,14 @@
     const deck = [];
     for (let round = 0; round < 2; round++) for (let value = 2; value <= 10; value++) for (const suit of SUITS) deck.push(card(value, suit));
     shuffle(deck);
-    state = { deck, discard: [], hands: [[], []], sets: [[], []], turn: 0, turnNumber: 1, phase: 'draw', actionTaken: false, finalPlayer: null, over: false, seenCards: new Map(), botReport: 'BOT has not played yet.', botLog: [], message: 'Draw two cards or take the top discard.' };
+    const startingPlayer = Math.random() < .5 ? 0 : 1;
+    state = { deck, discard: [], hands: [[], []], sets: [[], []], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, finalPlayer: null, over: false, seenCards: new Map(), botReport: startingPlayer === 1 ? 'BOT won the draw and starts.' : 'You won the draw and start.', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
     for (let i = 0; i < 10; i++) { state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop()); }
     state.hands[0].push(card('Joker', null, true)); state.hands[1].push(card('Joker', null, true));
     state.discard.push(deck.pop()); rememberCard(topDiscard());
     selected.clear(); selectedBoard = null; pendingDestroyed = null; modalLocked = false; $('modalBackdrop').classList.add('hidden');
     render();
+    if (startingPlayer === 1) setTimeout(botTurn, 650);
   }
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
   function sortHand(hand) { hand.sort((a, b) => (a.joker ? 99 : a.value) - (b.joker ? 99 : b.value) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)); }
@@ -198,7 +202,7 @@
     const click = interactive ? ` data-card="${c.id}"` : '';
     if (down) return `<div class="${classes.join(' ')}"${click} aria-label="Face-down card"></div>`;
     if (c.joker) return `<div class="${classes.join(' ')}"${click}><span>JOKER</span><span class="suit">✦</span></div>`;
-    return `<div class="${classes.join(' ')}"${click}><span class="corner">${c.value}${c.suit}</span><span class="suit">${c.suit}</span></div>`;
+    return `<div class="${classes.join(' ')}"${click}><span class="corner">${c.suit}</span><span class="rank">${c.value}</span><span class="suit">${c.suit}</span></div>`;
   }
   function render() {
     sortHand(state.hands[0]);
@@ -304,19 +308,24 @@
     const hand = state.hands[1], groups = {};
     hand.forEach(c => { if (!c.joker) (groups[c.value] ||= []).push(c); });
     const frequencies = Object.fromEntries(Object.entries(groups).map(([value, cards]) => [value, cards.length]));
-    const plans = [];
-    const jokers = hand.filter(c => c.joker);
-    Object.values(groups).filter(group => group.length + jokers.length >= 2).forEach(group => {
-      const matching = [...group, ...jokers], maxVisible = Math.min(matching.length, hand.length - 2, 4);
-      if (maxVisible < 2 || (highValueOnly && maxVisible < 3)) return;
-      const visibleCount = highValueOnly ? maxVisible : 2, visible = matching.slice(0, visibleCount), remaining = hand.filter(c => !visible.includes(c));
-      const hidden = [...remaining].sort((a, b) => {
-        const safeA = cardMatches(a, group[0].value) ? 0 : 1, safeB = cardMatches(b, group[0].value) ? 0 : 1;
-        return safeA - safeB || (frequencies[a.value] || 0) - (frequencies[b.value] || 0) || (a.joker ? -1 : 0) - (b.joker ? -1 : 0);
-      }).slice(0, state.deck.length < 16 && remaining.length >= 3 ? 3 : 2);
-      if (hidden.length < 2) return;
-      const bluffs = hidden.filter(c => !cardMatches(c, group[0].value)).length;
-      plans.push({ value: group[0].value, visible, hidden, bluffs, score: visibleCount * 12 - bluffs * (state.deck.length > 24 ? 5 : 2) + hidden.length });
+    const plans = [], doubleBluffAllowed = state.deck.length < 5 && faceUpCount(1) < faceUpCount(0);
+    Object.values(groups).filter(group => group.length >= 2).forEach(group => {
+      const maxVisible = Math.min(group.length, hand.length - 2, 4);
+      const visibleCounts = highValueOnly ? Array.from({ length: Math.max(0, maxVisible - 2) }, (_, i) => maxVisible - i) : [2];
+      visibleCounts.forEach(visibleCount => {
+        if (visibleCount < 2 || (highValueOnly && visibleCount < 3)) return;
+        const visible = group.slice(0, visibleCount), remaining = hand.filter(c => !visible.includes(c));
+        const correct = remaining.filter(c => cardMatches(c, group[0].value)).sort((a, b) => Number(b.joker) - Number(a.joker));
+        const incorrect = remaining.filter(c => !cardMatches(c, group[0].value)).sort((a, b) => (frequencies[a.value] || 0) - (frequencies[b.value] || 0));
+        let hidden = [];
+        if (correct.length >= 2 && (Math.random() < .58 || !incorrect.length)) hidden = correct.slice(0, 2);
+        else if (correct.length && incorrect.length) hidden = [correct[0], incorrect[0]];
+        else if (correct.length >= 2) hidden = correct.slice(0, 2);
+        else if (doubleBluffAllowed && incorrect.length >= 2) hidden = incorrect.slice(0, 2);
+        if (hidden.length < 2) return;
+        const bluffs = hidden.filter(c => !cardMatches(c, group[0].value)).length;
+        plans.push({ value: group[0].value, visible, hidden, bluffs, score: visibleCount * 12 + (2 - bluffs) * 8 - bluffs * 6 + Math.random() });
+      });
     });
     return plans.sort((a, b) => b.score - a.score)[0] || null;
   }
