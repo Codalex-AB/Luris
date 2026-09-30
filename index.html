@@ -77,6 +77,10 @@
     .card.flip-in { animation: flip-in .72s ease both; transform-style: preserve-3d; }
     .card.swap-in { animation: swap-in .72s ease both; }
     .card.swap-out { animation: swap-out .72s ease both; }
+    .card.draw-in { animation: draw-in .6s ease both; }
+    .card.discard-out { animation: discard-out .52s ease forwards; }
+    .card.discard-in { animation: discard-in .55s ease both; }
+    .set.destroying { animation: destroy-set .72s ease forwards; pointer-events: none; }
     .card .corner { position: absolute; top: 4px; left: 5px; font-size: 13px; line-height: 1; }
     .card .rank { font-size: 27px; line-height: 1; letter-spacing: -.04em; }
     .card .suit { position: absolute; right: 5px; bottom: 3px; font-size: 14px; line-height: 1; opacity: .9; }
@@ -121,7 +125,11 @@
     @keyframes flip-in { 0% { opacity: .25; transform: perspective(300px) rotateY(90deg) scale(.85); } 55% { box-shadow: 0 0 24px var(--gold); } 100% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1); } }
     @keyframes swap-in { 0% { opacity: .25; transform: translateX(24px) rotate(8deg) scale(.8); } 65% { box-shadow: 0 0 24px var(--coral); } 100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); } }
     @keyframes swap-out { 0% { opacity: .25; transform: translateY(-20px) scale(.8); } 65% { box-shadow: 0 0 24px var(--gold); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-    @media (prefers-reduced-motion: reduce) { .card.flip-in, .card.swap-in, .card.swap-out { animation: none; } }
+    @keyframes draw-in { 0% { opacity: 0; transform: translateY(-24px) rotate(-7deg) scale(.72); } 70% { box-shadow: 0 0 20px var(--gold); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
+    @keyframes discard-out { to { opacity: 0; transform: translateY(-34px) rotate(12deg) scale(.65); } }
+    @keyframes discard-in { 0% { opacity: 0; transform: translateY(-22px) rotate(-8deg) scale(.75); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
+    @keyframes destroy-set { 0% { opacity: 1; transform: scale(1); filter: saturate(1); } 35% { transform: scale(1.06) rotate(-1deg); filter: saturate(1.8); box-shadow: 0 0 25px var(--coral); } 100% { opacity: 0; transform: scale(.55) translateY(24px) rotate(5deg); filter: saturate(.3); } }
+    @media (prefers-reduced-motion: reduce) { .card.flip-in, .card.swap-in, .card.swap-out, .card.draw-in, .card.discard-out, .card.discard-in, .set.destroying { animation: none; } }
     @media (max-width: 620px) {
       :root { --card-w: 40px; --card-h: 57px; }
       .topbar { padding: 7px 10px; }
@@ -189,7 +197,7 @@
     for (let round = 0; round < 2; round++) for (let value = 2; value <= 10; value++) for (const suit of SUITS) deck.push(card(value, suit));
     shuffle(deck);
     const startingPlayer = Math.random() < .5 ? 0 : 1;
-    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, finalPlayer: null, over: false, seenCards: new Map(), botReport: startingPlayer === 1 ? 'BOT won the draw and starts.' : 'You won the draw and start.', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
+    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, resolving: false, finalPlayer: null, over: false, seenCards: new Map(), botReport: startingPlayer === 1 ? 'BOT won the draw and starts.' : 'You won the draw and start.', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
     for (let i = 0; i < 10; i++) { state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop()); }
     state.hands[0].push(card('Joker', null, true)); state.hands[1].push(card('Joker', null, true));
     state.discard.push(deck.pop()); rememberCard(topDiscard());
@@ -223,7 +231,7 @@
     sortHand(state.hands[0]);
     $('drawCount').textContent = state.deck.length;
     $('discardCount').textContent = state.discard.length;
-    $('discardCard').innerHTML = topDiscard() ? cardHTML({...topDiscard(), faceUp: true}, isHumanTurn() && state.phase === 'draw') : '';
+    $('discardCard').innerHTML = topDiscard() ? cardHTML({...topDiscard(), faceUp: true}, isHumanTurn() && state.phase === 'draw', animationClass(topDiscard().id)) : '';
     $('botScore').textContent = `${faceUpCount(1)} face-up`;
     $('humanScore').textContent = `${faceUpCount(0)} face-up`;
     $('botHandCount').textContent = `${state.hands[1].length} in hand`;
@@ -239,7 +247,7 @@
   }
   function renderSets(player, target) {
     if (!state.sets[player].length) { target.innerHTML = '<div class="empty">No sets on the table yet.</div>'; return; }
-    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' && !state.actionTaken ? 'selectable' : ''} ${player === 0 ? 'inspectable' : ''}" data-set="${player}:${index}" ${player === 0 ? 'title="View your hidden cards" aria-label="View your set"' : ''}>${set.cards.map(c => { const selectedClass = selectedBoard?.mode === 'swap' && selectedBoard.setIndex === index && selectedBoard.cardId === c.id && player === 0 ? 'table-selected' : ''; return cardHTML(c, isHumanTurn() && state.phase === 'action' && !state.actionTaken && !c.faceUp, `${selectedClass} ${animationClass(c.id)}`.trim()); }).join('')}</div>`).join('');
+    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' && !state.actionTaken ? 'selectable' : ''} ${player === 0 ? 'inspectable' : ''} ${set.destroying ? 'destroying' : ''}" data-set="${player}:${index}" ${player === 0 ? 'title="View your hidden cards" aria-label="View your set"' : ''}>${set.cards.map(c => { const selectedClass = selectedBoard?.mode === 'swap' && selectedBoard.setIndex === index && selectedBoard.cardId === c.id && player === 0 ? 'table-selected' : ''; return cardHTML(c, isHumanTurn() && state.phase === 'action' && !state.actionTaken && !c.faceUp, `${selectedClass} ${animationClass(c.id)}`.trim()); }).join('')}</div>`).join('');
   }
   function formatClock(ms) { const total = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`; }
   function renderClocks() { [0, 1].forEach(player => { const el = $(player === 0 ? 'humanClock' : 'botClock'); el.textContent = formatClock(state.clocks[player]); el.classList.toggle('active', !state.over && state.turn === player); el.classList.toggle('low', state.clocks[player] <= 30000); }); }
@@ -250,7 +258,7 @@
   function renderControls() {
     const c = $('controls'); c.innerHTML = '';
     if (state.over) { c.innerHTML = '<button class="action primary" id="playAgain">Play again</button>'; $('playAgain').onclick = freshGame; return; }
-    if (!isHumanTurn()) return;
+    if (!isHumanTurn() || state.resolving) return;
     if (state.phase === 'draw') {
       addButton(c, state.deck.length ? `Draw ${state.deck.length === 1 ? 'last card' : '2 cards'}` : 'No cards left', drawCards, 'primary', !state.deck.length);
       addButton(c, 'Take discard', takeDiscard, '', !topDiscard());
@@ -260,29 +268,39 @@
       addButton(c, 'Cancel action', cancelAction, '', false);
     } else {
       addButton(c, 'Place set', openSetModal, 'primary', selected.size < 4 || state.finalPlayer === 0);
-      addButton(c, 'Flip a card', beginFlip, '', false);
-      addButton(c, 'Swap a card', beginSwap, '', false);
+      addButton(c, 'Flip a card', beginFlip, '', !state.sets.flat().some(set => set.cards.some(card => !card.faceUp)));
+      addButton(c, 'Swap a card', beginSwap, '', !state.sets[0].some(set => set.cards.some(card => !card.faceUp)));
       addButton(c, 'Pass', passAction, '', false);
     }
   }
   function addButton(parent, text, fn, cls = '', disabled = false) { const b = document.createElement('button'); b.className = `action ${cls}`; b.textContent = text; b.disabled = disabled; b.onclick = fn; parent.appendChild(b); }
   function drawCards() {
     if (!isHumanTurn() || state.phase !== 'draw') return;
-    const amount = Math.min(2, state.deck.length); for (let i = 0; i < amount; i++) state.hands[0].push(state.deck.pop());
+    const amount = Math.min(2, state.deck.length), drawn = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[0].push(card); drawn.push({ id: card.id, effect: 'draw-in' }); } animateCards(drawn);
     state.phase = 'action'; state.actionTaken = false; if (!state.deck.length) state.finalPlayer = 0; state.message = state.finalPlayer === 0 ? 'Final turn: choose flip, swap, or pass.' : 'Choose one action.'; render();
   }
-  function takeDiscard() { if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return; state.hands[0].push(state.discard.pop()); state.phase = 'action'; state.actionTaken = false; state.message = 'Choose one action.'; render(); }
+  function takeDiscard() { if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return; const taken = state.discard.pop(); state.hands[0].push(taken); animateCards([{ id: taken.id, effect: 'draw-in' }]); state.phase = 'action'; state.actionTaken = false; state.message = 'Choose one action.'; render(); }
   function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = message; render(); }
   function passAction() { completeAction('You passed. Choose a card to discard.'); }
   function cancelAction() { selectedBoard = null; selected.clear(); state.message = 'Choose one action.'; render(); }
   function endHumanTurn() {
-    if (!isHumanTurn() || state.phase !== 'action' || !state.actionTaken) return;
+    if (!isHumanTurn() || state.phase !== 'action' || !state.actionTaken || state.resolving) return;
     if (state.hands[0].length && !selected.size) { showToast('Select one card from your hand to discard.'); return; }
-    if (selected.size) { const id = [...selected][0], at = state.hands[0].findIndex(c => c.id === id); if (at >= 0) { const discarded = state.hands[0].splice(at, 1)[0]; state.discard.push(discarded); rememberCard(discarded); state.sets[0].forEach(set => { if (setValue(set) === discarded.value) setAI(set).matchingDiscardSeen = true; }); } }
-    selected.clear(); selectedBoard = null;
-    if (state.finalPlayer === 0) return finishGame();
-    if (!switchTurn(1)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'BOT is thinking…'; render(); scheduleBotTurn();
+    const discardId = selected.size ? [...selected][0] : null;
+    if (!discardId) return finishHumanTurn();
+    const serial = gameSerial;
+    state.resolving = true; state.message = 'Discarding your selected card…'; animateCards([{ id: discardId, effect: 'discard-out' }]); render();
+    setTimeout(() => {
+      if (serial !== gameSerial || state.over) return;
+      const at = state.hands[0].findIndex(c => c.id === discardId);
+      if (at >= 0) {
+        const discarded = state.hands[0].splice(at, 1)[0]; state.discard.push(discarded); rememberCard(discarded); animateCards([{ id: discarded.id, effect: 'discard-in' }]);
+        state.sets[0].forEach(set => { if (setValue(set) === discarded.value) setAI(set).matchingDiscardSeen = true; });
+      }
+      state.resolving = false; finishHumanTurn();
+    }, 540);
   }
+  function finishHumanTurn() { selected.clear(); selectedBoard = null; if (state.finalPlayer === 0) return finishGame(); if (!switchTurn(1)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'BOT is thinking…'; render(); scheduleBotTurn(); }
   function beginFlip() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets.flat().some(set => set.cards.some(c => !c.faceUp))) return showToast('There are no face-down cards to flip.'); selected.clear(); selectedBoard = { mode: 'flip' }; state.message = 'Tap any face-down card in either player’s sets.'; render(); }
   function beginSwap() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets[0].some(set => set.cards.some(c => !c.faceUp))) return showToast('You have no face-down cards to swap.'); selected.clear(); selectedBoard = { mode: 'swap' }; state.message = 'Tap one of your face-down cards to swap it.'; render(); }
   function onHandCard(id) {
@@ -302,7 +320,15 @@
   function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, including jokers, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => { c.faceUp = !hidden.has(c.id); if (c.faceUp) rememberCard(c); }); const set = { cards: orderSetCards(pendingSet) }; setAI(set); state.sets[0].push(set); closeModal(); completeAction(`Set of ${value}s placed. Choose a card to discard.`); }
   function showOwnSet(setIndex) { const set = state.sets[0][setIndex]; if (!set) return; modalLocked = false; $('modal').innerHTML = `<h2>Your set of ${setValue(set)}s</h2><p>Only you may look at these face-down cards. Nothing on the table has been changed.</p><div class="modal-cards">${set.cards.map(c => cardHTML({...c, faceUp: true})).join('')}</div><div class="modal-footer"><button class="action primary" id="closeOwnSet">Close</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('closeOwnSet').onclick = closeModal; }
   function showDestroyedSet(player, set, value) { pendingDestroyed = { player, set, value }; modalLocked = true; const owner = player === 1 ? "BOT's" : 'your'; $('modal').innerHTML = `<h2>Set destroyed</h2><p>The hidden card did not match. Review every card in ${owner} set of ${value}s before the complete set is shuffled underneath the discard pile.</p><div class="modal-cards">${set.cards.map(c => cardHTML({...c, faceUp: true}, false, animationClass(c.id))).join('')}</div><div class="modal-footer"><button class="action primary" id="discardDestroyed">Shuffle under discard</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('discardDestroyed').onclick = finalizeDestroyedSet; }
-  function finalizeDestroyedSet() { if (!pendingDestroyed) return; const { player, set, value } = pendingDestroyed, index = state.sets[player].indexOf(set); if (index >= 0) state.sets[player].splice(index, 1); set.cards.forEach(rememberCard); shuffle(set.cards); state.discard.unshift(...set.cards); pendingDestroyed = null; modalLocked = false; closeModal(); completeAction(`The ${value} set was shuffled underneath the discard pile. Choose a discard.`); }
+  function animateSetDestruction(player, set, done) {
+    const serial = gameSerial; set.destroying = true; state.resolving = true; render();
+    setTimeout(() => {
+      if (serial !== gameSerial || state.over) return;
+      const index = state.sets[player].indexOf(set); if (index >= 0) state.sets[player].splice(index, 1);
+      delete set.destroying; shuffle(set.cards); state.discard.unshift(...set.cards); state.resolving = false; done();
+    }, 740);
+  }
+  function finalizeDestroyedSet() { if (!pendingDestroyed) return; const { player, set, value } = pendingDestroyed; set.cards.forEach(rememberCard); pendingDestroyed = null; modalLocked = false; closeModal(); state.message = `The ${value} set is being destroyed…`; animateSetDestruction(player, set, () => completeAction(`The ${value} set was shuffled underneath the discard pile. Choose a discard.`)); }
   function closeModal() { if (modalLocked) return; $('modalBackdrop').classList.add('hidden'); pendingSet = null; }
   function knownValueCount(value) {
     const ids = new Set();
@@ -388,8 +414,9 @@
     const hidden = set.cards.filter(c => !c.faceUp), target = hidden[choice.hiddenIndex]; if (!target) return false;
     target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]);
     if (!cardMatches(target, choice.value)) {
-      set.cards.forEach(c => { c.faceUp = true; rememberCard(c); }); shuffle(set.cards); state.discard.unshift(...set.cards); state.sets[0].splice(choice.setIndex, 1);
+      set.cards.forEach(c => { c.faceUp = true; rememberCard(c); });
       logBot(`BOT challenged your set of ${choice.value}s and flipped ${cardLabel(target)}. It was a mismatch, so the set was shuffled underneath the discard pile.`);
+      animateSetDestruction(0, set, botEnd); return 'pending';
     } else {
       set.cards = orderSetCards(set.cards); const ai = setAI(set); ai.matchedChallenges++; ai.swappedSinceChallenge = false;
       logBot(`BOT challenged your set of ${choice.value}s and flipped ${cardLabel(target)}. It matched.`);
@@ -427,13 +454,13 @@
   function botAction() {
     const finalTurn = state.finalPlayer === 1, leading = faceUpCount(1) >= faceUpCount(0);
     const strongChallenge = chooseOpponentChallenge(finalTurn && !leading ? .38 : .66);
-    if (strongChallenge && resolveBotChallenge(strongChallenge)) return botEnd();
+    if (strongChallenge) { const result = resolveBotChallenge(strongChallenge); if (result === 'pending') return; if (result) return botEnd(); }
     if (!finalTurn) {
       const highValuePlan = buildBotSetPlan(true); if (highValuePlan && botPlaceSet(highValuePlan)) return botEnd();
       const normalPlan = buildBotSetPlan(false); if (normalPlan && (normalPlan.bluffs < 2 || state.deck.length < 20 || !state.sets[1].length) && botPlaceSet(normalPlan)) return botEnd();
     }
     const correction = findOwnSwap('correction'); if (correction) { performBotSwap(correction); return botEnd(); }
-    const moderateChallenge = chooseOpponentChallenge(finalTurn && !leading ? .25 : .52); if (moderateChallenge && resolveBotChallenge(moderateChallenge)) return botEnd();
+    const moderateChallenge = chooseOpponentChallenge(finalTurn && !leading ? .25 : .52); if (moderateChallenge) { const result = resolveBotChallenge(moderateChallenge); if (result === 'pending') return; if (result) return botEnd(); }
     if (botSelfFlip()) return botEnd();
     const jokerRetrieval = findOwnSwap('joker'); if (jokerRetrieval) { performBotSwap(jokerRetrieval); return botEnd(); }
     const trickSwap = Math.random() < .16 ? findOwnSwap('trick') : null; if (trickSwap) { performBotSwap(trickSwap); return botEnd(); }
@@ -451,7 +478,7 @@
     return bestIndex;
   }
   function botEnd() {
-    if (state.hands[1].length) { const discarded = state.hands[1].splice(botDiscardIndex(), 1)[0]; state.discard.push(discarded); rememberCard(discarded); logBot(`BOT discarded ${cardLabel(discarded)}.`); }
+    if (state.hands[1].length) { const discarded = state.hands[1].splice(botDiscardIndex(), 1)[0]; state.discard.push(discarded); rememberCard(discarded); animateCards([{ id: discarded.id, effect: 'discard-in' }]); logBot(`BOT discarded ${cardLabel(discarded)}.`); }
     state.botReport = state.botLog.join(' '); if (state.finalPlayer === 1) return finishGame();
     state.turnNumber++; if (!switchTurn(0)) return; state.phase = 'draw'; state.actionTaken = false; state.message = `${state.botReport} Your turn: draw two cards or take the discard.`; render();
   }
