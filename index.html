@@ -19,7 +19,7 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { min-height: 100%; margin: 0; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body {
       color: var(--ink);
       background: #101b18;
@@ -27,67 +27,68 @@
       -webkit-tap-highlight-color: transparent;
     }
     button { font: inherit; }
-    .shell { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 50% -20%, #315e48, var(--felt) 38%, var(--felt-deep) 100%); }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 1380px; padding: 20px clamp(18px, 4vw, 54px); margin: auto; }
+    .shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; background: radial-gradient(circle at 50% -20%, #315e48, var(--felt) 38%, var(--felt-deep) 100%); }
+    .topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; max-width: 1380px; padding: 10px clamp(14px, 3vw, 40px); margin: auto; }
     .brand { display: flex; gap: 12px; align-items: center; }
-    .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(245, 211, 141, .5); border-radius: 13px; color: var(--gold-bright); font-family: Georgia, serif; font-size: 25px; transform: rotate(-8deg); }
-    .brand-name { font: 700 25px Georgia, serif; letter-spacing: .08em; }
+    .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(245, 211, 141, .5); border-radius: 11px; color: var(--gold-bright); font-family: Georgia, serif; font-size: 22px; transform: rotate(-8deg); }
+    .brand-name { font: 700 22px Georgia, serif; letter-spacing: .08em; }
     .brand-tag { color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
     .top-actions { display: flex; gap: 9px; }
     .icon-btn, .ghost-btn { border: 1px solid rgba(236, 235, 215, .18); border-radius: 99px; padding: 9px 14px; color: var(--ink); background: rgba(255,255,255,.07); cursor: pointer; transition: .18s ease; }
     .icon-btn:hover, .ghost-btn:hover { border-color: var(--gold); background: rgba(255,255,255,.13); }
 
-    main { max-width: 1380px; margin: auto; padding: 0 clamp(14px, 4vw, 54px) 36px; }
-    .game-head { display: flex; justify-content: space-between; align-items: end; gap: 18px; padding: 14px 0 18px; }
+    main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; max-width: 1380px; margin: auto; padding: 0 clamp(10px, 3vw, 40px) 10px; }
+    .game-head { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 4px 0 8px; }
     h1, h2, p { margin: 0; }
-    h1 { font: 500 clamp(28px, 4vw, 46px)/1 Georgia, serif; letter-spacing: -.03em; }
-    .subtitle { margin-top: 8px; color: var(--muted); font-size: 14px; }
-    .turn-pill { display: flex; align-items: center; gap: 9px; padding: 10px 15px; border: 1px solid rgba(245, 211, 141, .35); border-radius: 99px; color: var(--gold-bright); background: rgba(0,0,0,.16); font-size: 13px; white-space: nowrap; }
+    h1 { font: 500 clamp(21px, 3vw, 32px)/1 Georgia, serif; letter-spacing: -.03em; }
+    .subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .turn-pill { display: flex; align-items: center; gap: 9px; padding: 7px 12px; border: 1px solid rgba(245, 211, 141, .35); border-radius: 99px; color: var(--gold-bright); background: rgba(0,0,0,.16); font-size: 12px; white-space: nowrap; }
     .turn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold-bright); box-shadow: 0 0 15px var(--gold); }
-    .table { position: relative; min-height: 520px; padding: clamp(18px, 3vw, 32px); border: 1px solid rgba(255,255,255,.13); border-radius: 28px; background: linear-gradient(145deg, rgba(8, 25, 19, .2), rgba(255,255,255,.035)); box-shadow: var(--shadow); }
-    .player-zone { min-height: 145px; }
-    .player-zone.bot { padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,.1); }
-    .player-zone.human { padding-top: 18px; }
-    .zone-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .table { position: relative; flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: minmax(76px, 1fr) 72px minmax(76px, 1fr) auto auto auto; gap: 5px; padding: clamp(10px, 2vw, 20px); border: 1px solid rgba(255,255,255,.13); border-radius: 24px; background: linear-gradient(145deg, rgba(8, 25, 19, .2), rgba(255,255,255,.035)); box-shadow: var(--shadow); overflow: hidden; }
+    .player-zone { min-height: 0; overflow: hidden; }
+    .player-zone.bot { padding-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .player-zone.human { padding-top: 5px; }
+    .zone-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 5px; }
     .player-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 10px; color: #173128; background: var(--gold); font-size: 14px; }
     .human .avatar { background: var(--coral); color: #3b201c; }
     .score { color: var(--muted); font-size: 12px; }
-    .sets { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 13px; min-height: 92px; }
-    .empty { width: 100%; padding: 23px 8px; border: 1px dashed rgba(255,255,255,.13); border-radius: 14px; color: rgba(255,255,255,.42); text-align: center; font-size: 12px; }
-    .set { display: flex; gap: 3px; align-items: center; min-height: 79px; padding: 7px; border: 1px solid rgba(228,185,108,.28); border-radius: 13px; background: rgba(5, 19, 14, .28); transition: .2s; }
+    .sets { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 5px; min-height: 48px; max-height: calc(100% - 31px); overflow: hidden; }
+    .empty { width: 100%; padding: 14px 8px; border: 1px dashed rgba(255,255,255,.13); border-radius: 12px; color: rgba(255,255,255,.42); text-align: center; font-size: 11px; }
+    .set { display: flex; gap: 2px; align-items: center; min-height: 55px; padding: 4px; border: 1px solid rgba(228,185,108,.28); border-radius: 10px; background: rgba(5, 19, 14, .28); transition: .2s; }
     .set.selectable { cursor: pointer; }
     .set:hover, .set:focus-within { border-color: var(--gold); transform: translateY(-2px); }
     .set.danger { animation: shake .35s ease; }
     .set-caption { align-self: stretch; display: flex; align-items: center; padding: 0 3px; color: var(--gold); font: 700 11px Georgia, serif; }
-    .card { position: relative; display: grid; place-items: center; width: 43px; height: 62px; border: 1px solid #d8d0bb; border-radius: 7px; color: #282622; background: var(--cream); box-shadow: 0 4px 7px rgba(0,0,0,.2); font: 700 20px Georgia, serif; user-select: none; }
+    .card { position: relative; display: grid; place-items: center; width: 39px; height: 56px; border: 1px solid #d8d0bb; border-radius: 7px; color: #282622; background: var(--cream); box-shadow: 0 4px 7px rgba(0,0,0,.2); font: 700 18px Georgia, serif; user-select: none; }
     .card.red { color: #b84943; }
     .card.face-down { border-color: #d7ae64; color: var(--gold-bright); background: repeating-linear-gradient(135deg, #2e5b47 0 4px, #244c3b 4px 8px); cursor: pointer; }
     .card.face-down::after { content: "✦"; font-size: 20px; opacity: .78; }
-    .card.selected { outline: 3px solid var(--gold-bright); outline-offset: 2px; transform: translateY(-7px); }
+    .card.selected, .hand-card.selected .card { outline: 3px solid var(--gold-bright); outline-offset: 1px; transform: translateY(-5px); }
     .card .corner { position: absolute; top: 3px; left: 5px; font-size: 10px; line-height: 1; }
     .card .suit { font-size: 17px; opacity: .9; }
     .card.joker { color: #a85b39; font-size: 12px; letter-spacing: .03em; }
     .card.joker .suit { font-size: 19px; color: var(--gold); }
-    .hand-wrap { margin: 24px 0 0; padding: 14px 16px 11px; border: 1px solid rgba(255,255,255,.13); border-radius: 18px; background: rgba(5, 16, 12, .2); }
-    .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; min-height: 70px; }
+    .hand-wrap { padding: 8px 10px 5px; border: 1px solid rgba(255,255,255,.13); border-radius: 14px; background: rgba(5, 16, 12, .2); overflow: hidden; }
+    .hand { display: grid; grid-template-columns: repeat(auto-fit, minmax(24px, 39px)); justify-content: center; gap: 4px; min-height: 58px; max-height: 118px; }
     .hand .card { cursor: pointer; }
-    .hand-note { margin-top: 9px; color: var(--muted); text-align: center; font-size: 11px; }
-    .middle { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; min-height: 130px; padding: 16px 0; }
+    .hand-note { margin-top: 3px; color: var(--muted); text-align: center; font-size: 10px; }
+    .middle { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: clamp(8px, 3vw, 28px); min-height: 0; padding: 3px 0; }
     .pile { display: flex; align-items: center; gap: 12px; }
-    .pile.right { justify-content: flex-end; }
+    .middle > .pile:first-child { justify-self: end; }
+    .pile.right { position: relative; justify-self: center; justify-content: flex-start; width: 42px; }
+    .pile.right > div:last-child { position: absolute; left: 52px; }
     .pile-label { color: var(--muted); font-size: 11px; line-height: 1.35; text-transform: uppercase; letter-spacing: .1em; }
     .pile-count { color: var(--ink); font-size: 21px; font-weight: 700; }
-    .back { display: grid; place-items: center; width: 46px; height: 64px; border: 1px solid #d7ae64; border-radius: 7px; color: var(--gold-bright); background: repeating-linear-gradient(135deg, #2e5b47 0 4px, #244c3b 4px 8px); box-shadow: 0 5px 8px rgba(0,0,0,.2); font-size: 21px; }
+    .back { display: grid; place-items: center; width: 42px; height: 59px; border: 1px solid #d7ae64; border-radius: 7px; color: var(--gold-bright); background: repeating-linear-gradient(135deg, #2e5b47 0 4px, #244c3b 4px 8px); box-shadow: 0 5px 8px rgba(0,0,0,.2); font-size: 20px; }
     .discard .card { cursor: pointer; }
-    .vs { color: rgba(255,255,255,.22); font: 700 12px Georgia, serif; }
-    .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
-    .action { min-height: 40px; padding: 9px 15px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; color: var(--ink); background: rgba(255,255,255,.08); cursor: pointer; transition: .18s ease; }
+    .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 3px; }
+    .action { min-height: 36px; padding: 7px 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; color: var(--ink); background: rgba(255,255,255,.08); cursor: pointer; transition: .18s ease; }
     .action:hover:not(:disabled) { border-color: var(--gold); background: rgba(228,185,108,.15); transform: translateY(-1px); }
     .action.primary { border-color: var(--gold); color: #2a2114; background: var(--gold); font-weight: 700; }
     .action.primary:hover:not(:disabled) { background: var(--gold-bright); }
     .action:disabled { opacity: .38; cursor: not-allowed; }
-    .status { min-height: 23px; margin-top: 10px; color: var(--gold-bright); text-align: center; font-size: 13px; }
+    .status { min-height: 18px; color: var(--gold-bright); text-align: center; font-size: 12px; }
 
     .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; background: rgba(4, 12, 9, .75); backdrop-filter: blur(8px); }
     .modal { width: min(560px, 100%); padding: 25px; border: 1px solid rgba(228,185,108,.35); border-radius: 22px; background: #19372b; box-shadow: var(--shadow); }
@@ -105,21 +106,33 @@
     @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
     @media (max-width: 620px) {
-      .topbar { padding-top: 14px; }
+      .topbar { padding: 7px 10px; }
       .brand-tag { display: none; }
       .top-actions .ghost-btn { padding: 8px 10px; font-size: 12px; }
-      .game-head { align-items: flex-start; flex-direction: column; }
-      .turn-pill { align-self: stretch; justify-content: center; }
-      .table { min-height: 0; border-radius: 21px; padding: 16px 12px; }
-      .middle { grid-template-columns: 1fr 1fr; gap: 10px; }
-      .pile { justify-content: center !important; }
-      .vs { display: none; }
+      .game-head { padding: 2px 0 6px; }
+      .subtitle { display: none; }
+      .table { border-radius: 18px; padding: 8px; grid-template-rows: minmax(68px, 1fr) 66px minmax(68px, 1fr) auto auto auto; }
+      .middle { column-gap: 8px; }
       .pile-label { font-size: 10px; }
-      .card { width: 38px; height: 56px; font-size: 18px; }
-      .set { min-height: 69px; }
-      .set .card { width: 34px; height: 49px; font-size: 16px; }
+      .card { width: 34px; height: 49px; font-size: 16px; }
+      .back { width: 36px; height: 51px; }
+      .pile.right { width: 36px; }
+      .pile.right > div:last-child { left: 43px; }
+      .hand { grid-template-columns: repeat(auto-fit, minmax(21px, 34px)); min-height: 51px; max-height: 104px; }
+      .set { min-height: 48px; padding: 3px; }
+      .set .card { width: 29px; height: 42px; font-size: 14px; }
       .set .card .suit { font-size: 14px; }
       .set .card .corner { font-size: 8px; }
+      .action { min-height: 32px; padding: 5px 9px; font-size: 12px; }
+    }
+    @media (max-height: 650px) {
+      .brand-tag, .game-head > div:first-child { display: none; }
+      .game-head { justify-content: flex-end; padding-bottom: 4px; }
+      .topbar { padding-top: 5px; padding-bottom: 5px; }
+      .table { grid-template-rows: minmax(62px, 1fr) 60px minmax(62px, 1fr) auto auto auto; }
+      .card { width: 33px; height: 47px; font-size: 15px; }
+      .hand { min-height: 49px; max-height: 100px; }
+      .hand-note { display: none; }
     }
   </style>
 </head>
@@ -133,7 +146,7 @@
     <section class="game-head"><div><h1>Make your move.</h1><p class="subtitle">Build sets, hide your bluffs, and reveal at the right moment.</p></div><div class="turn-pill"><span class="turn-dot"></span><span id="turnLabel">Your turn</span></div></section>
     <section class="table" aria-label="Luris game table">
       <div class="player-zone bot"><div class="zone-head"><div class="player-label"><span class="avatar">◈</span> Nova <span class="score" id="botScore">0 face-up</span></div><div class="score" id="botHandCount">10 in hand</div></div><div class="sets" id="botSets"></div></div>
-      <div class="middle"><div class="pile"><div class="back">✦</div><div><div class="pile-label">Draw pile</div><div class="pile-count" id="drawCount">0</div></div></div><div class="vs">LURIS</div><div class="pile right"><div><div class="pile-label">Discard</div><div class="pile-count" id="discardCount">0</div></div><div class="discard" id="discardCard"></div></div></div>
+      <div class="middle"><div class="pile"><div class="back">✦</div><div><div class="pile-label">Draw pile</div><div class="pile-count" id="drawCount">0</div></div></div><div class="pile right"><div class="discard" id="discardCard"></div><div><div class="pile-label">Discard</div><div class="pile-count" id="discardCount">0</div></div></div></div>
       <div class="player-zone human"><div class="zone-head"><div class="player-label"><span class="avatar">✦</span> You <span class="score" id="humanScore">0 face-up</span></div><div class="score" id="humanHandCount">10 in hand</div></div><div class="sets" id="humanSets"></div></div>
       <div class="hand-wrap"><div class="hand" id="hand"></div><div class="hand-note" id="handNote">Tap cards to select them.</div></div>
       <div class="controls" id="controls"></div>
@@ -155,11 +168,10 @@
   function freshGame() {
     const deck = [];
     for (let round = 0; round < 2; round++) for (let value = 2; value <= 10; value++) for (const suit of SUITS) deck.push(card(value, suit));
-    deck.push(card('Joker', null, true), card('Joker', null, true));
     shuffle(deck);
-    state = { deck, discard: [], hands: [[], []], sets: [[], []], turn: 0, phase: 'draw', finalPlayer: null, over: false, message: 'Draw two cards or take the top discard.' };
+    state = { deck, discard: [], hands: [[], []], sets: [[], []], turn: 0, phase: 'draw', actionTaken: false, finalPlayer: null, over: false, message: 'Draw two cards or take the top discard.' };
     for (let i = 0; i < 10; i++) { state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop()); }
-    state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop());
+    state.hands[0].push(card('Joker', null, true)); state.hands[1].push(card('Joker', null, true));
     state.discard.push(deck.pop());
     selected.clear(); selectedBoard = null;
     render();
@@ -189,13 +201,13 @@
     $('turnLabel').textContent = state.over ? 'Game over' : state.turn === 0 ? 'Your turn' : 'Nova is thinking…';
     renderSets(1, $('botSets')); renderSets(0, $('humanSets'));
     $('hand').innerHTML = state.hands[0].map(c => `<div class="hand-card ${selected.has(c.id) ? 'selected' : ''}">${cardHTML(c, true)}</div>`).join('');
-    $('handNote').textContent = state.phase === 'draw' ? 'Draw first, then choose an action.' : selectedBoard ? 'A set card is selected. Choose a matching card to swap.' : 'Tap cards to select them.';
+    $('handNote').textContent = state.phase === 'draw' ? 'Draw first, then choose an action.' : selectedBoard ? (selectedBoard.setIndex === undefined ? 'Choose a face-down card on the table.' : 'Choose a matching card from your hand.') : state.actionTaken ? 'Choose one card to discard.' : 'Select cards for a set, or choose another action.';
     renderControls();
     $('status').textContent = state.message || '';
   }
   function renderSets(player, target) {
     if (!state.sets[player].length) { target.innerHTML = '<div class="empty">No sets on the table yet.</div>'; return; }
-    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' ? 'selectable' : ''}" data-set="${player}:${index}"><div class="set-caption">${setValue(set) || '✦'}</div>${set.cards.map(c => cardHTML(c, isHumanTurn() && state.phase === 'action' && !c.faceUp)).join('')}</div>`).join('');
+    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' && !state.actionTaken ? 'selectable' : ''}" data-set="${player}:${index}"><div class="set-caption">${setValue(set) || '✦'}</div>${set.cards.map(c => cardHTML(c, isHumanTurn() && state.phase === 'action' && !state.actionTaken && !c.faceUp)).join('')}</div>`).join('');
   }
   function renderControls() {
     const c = $('controls'); c.innerHTML = '';
@@ -204,55 +216,61 @@
     if (state.phase === 'draw') {
       addButton(c, state.deck.length ? `Draw ${state.deck.length === 1 ? 'last card' : '2 cards'}` : 'No cards left', drawCards, 'primary', !state.deck.length);
       addButton(c, 'Take discard', takeDiscard, '', !topDiscard());
+    } else if (state.actionTaken) {
+      addButton(c, state.hands[0].length ? 'Discard & end' : 'End turn', endHumanTurn, 'primary', state.hands[0].length > 0 && selected.size !== 1);
+    } else if (selectedBoard) {
+      addButton(c, 'Cancel action', cancelAction, '', false);
     } else {
       addButton(c, 'Place set', openSetModal, 'primary', selected.size < 4 || state.finalPlayer === 0);
       addButton(c, 'Flip a card', beginFlip, '', false);
       addButton(c, 'Swap a card', beginSwap, '', false);
       addButton(c, 'Pass', passAction, '', false);
-      addButton(c, 'Discard & end', endHumanTurn, '', state.hands[0].length === 0);
     }
   }
   function addButton(parent, text, fn, cls = '', disabled = false) { const b = document.createElement('button'); b.className = `action ${cls}`; b.textContent = text; b.disabled = disabled; b.onclick = fn; parent.appendChild(b); }
   function drawCards() {
     if (!isHumanTurn() || state.phase !== 'draw') return;
     const amount = Math.min(2, state.deck.length); for (let i = 0; i < amount; i++) state.hands[0].push(state.deck.pop());
-    state.phase = 'action'; if (!state.deck.length) state.finalPlayer = 0; state.message = state.finalPlayer === 0 ? 'Final turn: you may flip, swap, pass, or discard.' : 'Choose an action.'; render();
+    state.phase = 'action'; state.actionTaken = false; if (!state.deck.length) state.finalPlayer = 0; state.message = state.finalPlayer === 0 ? 'Final turn: choose flip, swap, or pass.' : 'Choose one action.'; render();
   }
-  function takeDiscard() { if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return; state.hands[0].push(state.discard.pop()); state.phase = 'action'; state.message = 'Choose an action.'; render(); }
-  function passAction() { state.message = 'You passed. Choose a card to discard.'; selected.clear(); render(); }
+  function takeDiscard() { if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return; state.hands[0].push(state.discard.pop()); state.phase = 'action'; state.actionTaken = false; state.message = 'Choose one action.'; render(); }
+  function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = message; render(); }
+  function passAction() { completeAction('You passed. Choose a card to discard.'); }
+  function cancelAction() { selectedBoard = null; selected.clear(); state.message = 'Choose one action.'; render(); }
   function endHumanTurn() {
-    if (!isHumanTurn() || state.phase !== 'action') return;
+    if (!isHumanTurn() || state.phase !== 'action' || !state.actionTaken) return;
     if (state.hands[0].length && !selected.size) { showToast('Select one card from your hand to discard.'); return; }
     if (selected.size) { const id = [...selected][0], at = state.hands[0].findIndex(c => c.id === id); if (at >= 0) state.discard.push(state.hands[0].splice(at, 1)[0]); }
     selected.clear(); selectedBoard = null;
     if (state.finalPlayer === 0) return finishGame();
-    state.turn = 1; state.phase = 'draw'; state.message = 'Nova is thinking…'; render(); setTimeout(botTurn, 650);
+    state.turn = 1; state.phase = 'draw'; state.actionTaken = false; state.message = 'Nova is thinking…'; render(); setTimeout(botTurn, 650);
   }
-  function beginFlip() { if (state.finalPlayer === 0) {} if (!isHumanTurn() || state.phase !== 'action') return; selectedBoard = { mode: 'flip' }; state.message = 'Tap any face-down card in either player’s sets.'; render(); }
-  function beginSwap() { if (!isHumanTurn() || state.phase !== 'action') return; selectedBoard = { mode: 'swap' }; state.message = 'Tap one of your face-down cards to swap it.'; render(); }
+  function beginFlip() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets.flat().some(set => set.cards.some(c => !c.faceUp))) return showToast('There are no face-down cards to flip.'); selected.clear(); selectedBoard = { mode: 'flip' }; state.message = 'Tap any face-down card in either player’s sets.'; render(); }
+  function beginSwap() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets[0].some(set => set.cards.some(c => !c.faceUp))) return showToast('You have no face-down cards to swap.'); selected.clear(); selectedBoard = { mode: 'swap' }; state.message = 'Tap one of your face-down cards to swap it.'; render(); }
   function onHandCard(id) {
     if (!isHumanTurn()) return;
     if (selectedBoard && selectedBoard.mode === 'swap' && selectedBoard.setIndex !== undefined) { doSwap(id); return; }
-    if (state.phase === 'action') { if (selected.has(id)) selected.delete(id); else { selected.clear(); selected.add(id); } render(); }
+    if (state.phase === 'action') { if (selected.has(id)) selected.delete(id); else { if (state.actionTaken) selected.clear(); selected.add(id); } render(); }
   }
   function onBoardCard(player, setIndex, cardId) {
     const set = state.sets[player][setIndex], c = set.cards.find(x => x.id === cardId); if (!c || c.faceUp) return;
-    if (!isHumanTurn() || state.phase !== 'action' || !selectedBoard) return;
+    if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken || !selectedBoard) return;
     if (selectedBoard.mode === 'swap') { if (player !== 0) return showToast('You can only swap cards in your own sets.'); selectedBoard.setIndex = setIndex; selectedBoard.cardId = cardId; state.message = 'Now tap a matching face-up card in your hand.'; render(); return; }
     if (selectedBoard.mode === 'flip') resolveFlip(player, setIndex, c);
   }
-  function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; if (!cardMatches(c, value)) { set.cards.forEach(x => x.faceUp = true); state.message = `A mismatch! The ${value} set is destroyed.`; setTimeout(() => { state.discard.push(...set.cards); state.sets[player].splice(setIndex, 1); selectedBoard = null; render(); }, 800); } else { state.message = 'Good reveal. Choose another action or discard.'; selectedBoard = null; render(); } }
-  function doSwap(id) { const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set.cards.find(c => c.id === selectedBoard.cardId), value = setValue(set); if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.'); const at = state.hands[0].findIndex(c => c.id === id); state.hands[0].splice(at, 1); state.discard.push(hidden); handCard.faceUp = true; set.cards[set.cards.indexOf(hidden)] = handCard; selectedBoard = null; state.message = 'Nice swap. Choose another action or discard.'; render(); }
+  function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; if (!cardMatches(c, value)) { set.cards.forEach(x => x.faceUp = true); state.discard.unshift(...set.cards); state.sets[player].splice(setIndex, 1); completeAction(`A mismatch! The ${value} set was destroyed. Choose a discard.`); } else completeAction('A match! Choose a card to discard.'); }
+  function doSwap(id) { const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set.cards.find(c => c.id === selectedBoard.cardId), value = setValue(set); if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.'); const at = state.hands[0].findIndex(c => c.id === id); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; set.cards[set.cards.indexOf(hidden)] = handCard; completeAction('Swap complete. Choose a card to discard.'); }
   function openSetModal() { if (selected.size < 4) return showToast('Select at least 4 cards: 2 face-up and 2 hidden.'); if (state.finalPlayer === 0) return showToast('You cannot place a set on the final turn.'); pendingSet = [...selected].map(id => state.hands[0].find(c => c.id === id)); const hidden = new Set(pendingSet.slice(2).map(c => c.id)); $('modal').innerHTML = `<h2>Place your set</h2><p>Tap the cards you want to hide. Your set needs at least two matching face-up cards and two hidden cards.</p><div class="modal-cards">${pendingSet.map(c => `<div class="modal-card ${hidden.has(c.id) ? 'hidden-choice' : ''}" data-modal-card="${c.id}">${cardHTML(c)}</div>`).join('')}</div><div class="modal-footer"><button class="action" id="cancelSet">Cancel</button><button class="action primary" id="confirmSet">Place set</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('cancelSet').onclick = closeModal; $('confirmSet').onclick = confirmSet; $('confirmSet')._hidden = hidden; document.querySelectorAll('[data-modal-card]').forEach(el => el.onclick = () => { const id = el.dataset.modalCard; if (hidden.has(id)) hidden.delete(id); else hidden.add(id); el.classList.toggle('hidden-choice'); $('confirmSet')._hidden = hidden; }); }
-  function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.filter(v => v === value).length < 2 || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => c.faceUp = !hidden.has(c.id)); state.sets[0].push({ cards: pendingSet }); selected.clear(); closeModal(); state.message = `Set of ${value}s placed. Can Nova spot your bluff?`; render(); }
+  function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.filter(v => v === value).length < 2 || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => c.faceUp = !hidden.has(c.id)); state.sets[0].push({ cards: pendingSet }); closeModal(); completeAction(`Set of ${value}s placed. Choose a card to discard.`); }
   function closeModal() { $('modalBackdrop').classList.add('hidden'); pendingSet = null; }
-  function botTurn() { if (state.over) return; const amount = Math.min(2, state.deck.length); for (let i = 0; i < amount; i++) state.hands[1].push(state.deck.pop()); if (!state.deck.length) state.finalPlayer = 1; state.phase = 'action'; if (state.finalPlayer !== 1) botPlaceSet(); botAction(); }
-  function botPlaceSet() { const hand = state.hands[1]; const groups = {}; hand.forEach(c => { if (!c.joker) (groups[c.value] ||= []).push(c); }); const group = Object.values(groups).find(g => g.length >= 4); if (!group) return; const chosen = group.slice(0, Math.min(group.length, 5)); const setCards = chosen.map((c, index) => ({...c, faceUp: index < 2})); const bluff = hand.find(c => c.value !== chosen[0].value) || hand.find(c => c.joker); if (bluff && setCards.length < 6) setCards.push({...bluff, faceUp: false}); state.hands[1] = hand.filter(c => !setCards.some(s => s.id === c.id)); state.sets[1].push({ cards: setCards }); }
-  function botAction() { const candidates = []; state.sets.forEach((sets, p) => sets.forEach((set, si) => set.cards.forEach(c => { if (!c.faceUp) candidates.push({p, si, c, value: setValue(set)}); }))); const good = candidates.filter(x => cardMatches(x.c, x.value)); const ownHidden = candidates.filter(x => x.p === 1); if (good.length && Math.random() < .55) { const pick = good[Math.floor(Math.random() * good.length)]; resolveBotFlip(pick); } else if (ownHidden.length && state.hands[1].some(c => cardMatches(c, ownHidden[0].value)) && Math.random() < .35) { const pick = ownHidden[0], at = state.hands[1].findIndex(c => cardMatches(c, pick.value)); const replacement = state.hands[1].splice(at, 1)[0]; state.discard.push(pick.c); state.sets[1][pick.si].cards[state.sets[1][pick.si].cards.indexOf(pick.c)] = {...replacement, faceUp: true}; } botEnd(); }
-  function resolveBotFlip(x) { x.c.faceUp = true; if (!cardMatches(x.c, x.value)) { x.c.faceUp = true; state.sets[x.p][x.si].cards.forEach(c => c.faceUp = true); state.discard.push(...state.sets[x.p][x.si].cards); state.sets[x.p].splice(x.si, 1); state.message = 'Nova found a mismatch and destroyed a set.'; } else state.message = 'Nova reveals a matching card.'; }
-  function botEnd() { if (state.hands[1].length) { const discardAt = state.hands[1].findIndex(c => !c.joker) >= 0 ? state.hands[1].findIndex(c => !c.joker) : 0; state.discard.push(state.hands[1].splice(discardAt, 1)[0]); } if (state.finalPlayer === 1) return finishGame(); state.turn = 0; state.phase = 'draw'; state.message = 'Draw two cards or take the top discard.'; render(); }
-  function finishGame() { state.over = true; state.phase = 'over'; const you = faceUpCount(0), bot = faceUpCount(1); state.message = you === bot ? `It’s a draw at ${you} face-up cards.` : you > bot ? `You win ${you}–${bot}!` : `Nova wins ${bot}–${you}.`; render(); setTimeout(() => showResult(you, bot), 300); }
-  function showResult(you, bot) { $('modal').innerHTML = `<h2>${you === bot ? 'A perfectly close game.' : you > bot ? 'You outplayed Nova.' : 'Nova takes this one.'}</h2><p>${you === bot ? 'The cards are tied. One more game will settle it.' : 'Every hidden card was a calculated risk.'}</p><div class="result-score"><div><strong>${you}</strong><span>Your face-up cards</span></div><div><strong>${bot}</strong><span>Nova’s face-up cards</span></div></div><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = () => { closeModal(); freshGame(); }; }
+  function botTurn() { if (state.over) return; const usefulDiscard = topDiscard() && !topDiscard().joker && state.hands[1].some(c => c.value === topDiscard().value); if (usefulDiscard && Math.random() < .7) state.hands[1].push(state.discard.pop()); else { const amount = Math.min(2, state.deck.length); for (let i = 0; i < amount; i++) state.hands[1].push(state.deck.pop()); if (!state.deck.length) state.finalPlayer = 1; } state.phase = 'action'; if (state.finalPlayer !== 1 && botPlaceSet()) return botEnd(); botAction(); }
+  function botPlaceSet() { const hand = state.hands[1], groups = {}; hand.forEach(c => { if (!c.joker) (groups[c.value] ||= []).push(c); }); const pair = Object.values(groups).filter(g => g.length >= 2).sort((a, b) => b.length - a.length)[0]; if (!pair || hand.length < 4) return false; const visible = pair.slice(0, 2), remaining = hand.filter(c => !visible.includes(c)); const hidden = remaining.sort(() => Math.random() - .5).slice(0, Math.min(3, remaining.length)); if (hidden.length < 2) return false; const chosen = [...visible, ...hidden], ids = new Set(chosen.map(c => c.id)); state.hands[1] = hand.filter(c => !ids.has(c.id)); state.sets[1].push({ cards: chosen.map((c, index) => ({...c, faceUp: index < 2})) }); state.message = `Nova placed a set of ${visible[0].value}s.`; return true; }
+  function botAction() { const candidates = []; state.sets.forEach((sets, p) => sets.forEach((set, si) => set.cards.forEach(c => { if (!c.faceUp) candidates.push({p, si, c, value: setValue(set)}); }))); const swappable = candidates.filter(x => x.p === 1 && state.hands[1].some(c => cardMatches(c, x.value))); if (swappable.length && Math.random() < .4) { const pick = swappable[Math.floor(Math.random() * swappable.length)], at = state.hands[1].findIndex(c => cardMatches(c, pick.value)), replacement = state.hands[1][at]; state.hands[1].splice(at, 1, pick.c); delete pick.c.faceUp; replacement.faceUp = true; state.sets[1][pick.si].cards[state.sets[1][pick.si].cards.indexOf(pick.c)] = replacement; state.message = 'Nova swapped one of its hidden cards.'; } else if (candidates.length && Math.random() < .7) { const opponentCards = candidates.filter(x => x.p === 0), pool = opponentCards.length ? opponentCards : candidates, pick = pool[Math.floor(Math.random() * pool.length)]; resolveBotFlip(pick); } else state.message = 'Nova passed.'; botEnd(); }
+  function resolveBotFlip(x) { x.c.faceUp = true; if (!cardMatches(x.c, x.value)) { state.sets[x.p][x.si].cards.forEach(c => c.faceUp = true); state.discard.unshift(...state.sets[x.p][x.si].cards); state.sets[x.p].splice(x.si, 1); state.message = 'Nova revealed a mismatch and destroyed the set.'; } else state.message = 'Nova revealed a matching card.'; }
+  function botEnd() { if (state.hands[1].length) { const discardAt = state.hands[1].findIndex(c => !c.joker) >= 0 ? state.hands[1].findIndex(c => !c.joker) : 0; state.discard.push(state.hands[1].splice(discardAt, 1)[0]); } if (state.finalPlayer === 1) return finishGame(); state.turn = 0; state.phase = 'draw'; state.actionTaken = false; state.message = 'Draw two cards or take the top discard.'; render(); }
+  function winner() { const scores = [faceUpCount(0), faceUpCount(1)]; if (scores[0] !== scores[1]) return scores[0] > scores[1] ? 0 : 1; if (state.hands[0].length !== state.hands[1].length) return state.hands[0].length > state.hands[1].length ? 0 : 1; return -1; }
+  function finishGame() { state.over = true; state.phase = 'over'; const you = faceUpCount(0), bot = faceUpCount(1), wonBy = winner(); state.message = wonBy < 0 ? `It’s a draw at ${you} face-up cards.` : wonBy === 0 ? `You win ${you}–${bot}!` : `Nova wins ${bot}–${you}.`; render(); setTimeout(() => showResult(you, bot, wonBy), 300); }
+  function showResult(you, bot, wonBy) { $('modal').innerHTML = `<h2>${wonBy < 0 ? 'A perfectly close game.' : wonBy === 0 ? 'You outplayed Nova.' : 'Nova takes this one.'}</h2><p>${you === bot && wonBy >= 0 ? `Face-up cards were tied; cards in hand decided the winner.` : wonBy < 0 ? 'Both face-up cards and cards in hand are tied.' : 'Every hidden card was a calculated risk.'}</p><div class="result-score"><div><strong>${you}</strong><span>Your face-up cards</span></div><div><strong>${bot}</strong><span>Nova’s face-up cards</span></div></div><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = () => { closeModal(); freshGame(); }; }
   function showToast(text) { $('toast').textContent = text; $('toast').classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2800); }
   function showRules() { $('modal').innerHTML = '<h2>How to play</h2><p>On your turn, draw two cards (or take the top discard), then choose one action: place a set, flip a hidden card, swap a hidden card for a matching card from your hand, or pass.</p><p>A set needs at least two matching cards face-up and two cards face-down. Face-down cards can be bluffs. If a reveal does not match, the whole set is discarded. Jokers are wild.</p><p>When the draw pile runs out, finish the final turn. The player with the most face-up cards wins.</p><div class="modal-footer"><button class="action primary" id="closeRules">Got it</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('closeRules').onclick = closeModal; }
   document.addEventListener('click', e => { const handCard = e.target.closest('[data-card]'); if (handCard && handCard.closest('#hand')) onHandCard(handCard.dataset.card); const boardCard = e.target.closest('[data-card]'); const setEl = e.target.closest('[data-set]'); if (boardCard && setEl && !boardCard.closest('#hand')) { const [player, setIndex] = setEl.dataset.set.split(':').map(Number); onBoardCard(player, setIndex, boardCard.dataset.card); } const discard = e.target.closest('#discardCard [data-card]'); if (discard && isHumanTurn() && state.phase === 'draw') takeDiscard(); });
