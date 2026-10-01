@@ -239,7 +239,7 @@
   function setAI(set) { return set.ai ||= { createdTurn: state.turnNumber, matchingDiscardSeen: false, swappedSinceChallenge: false, matchedChallenges: 0 }; }
   function markSetPlaced(set) { const serial = gameSerial; set.placing = true; setTimeout(() => { if (serial === gameSerial) delete set.placing; }, 800); }
   function logBot(text) { state.botLog.push(text); }
-  function botReportText() { return state.botLog.join(' -> '); }
+  function botReportText() { return state.botLog.join(' → '); }
   function setValue(set) { const visible = set.cards.find(c => c.faceUp && !c.joker); return visible ? visible.value : null; }
   function canHumanSwap() { return state.sets[0].some(set => set.cards.some(card => !card.faceUp) && state.hands[0].some(card => cardMatches(card, setValue(set)))); }
   function cardHTML(c, interactive = false, extraClass = '') {
