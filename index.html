@@ -89,7 +89,7 @@
     .card.joker { color: #a85b39; font-size: 12px; letter-spacing: .03em; }
     .card.joker .suit { font-size: 19px; color: var(--gold); }
     .hand-wrap { padding: 8px 10px 5px; border: 1px solid rgba(255,255,255,.13); border-radius: 14px; background: rgba(5, 16, 12, .2); overflow: hidden; }
-    .hand { display: grid; grid-template-columns: repeat(auto-fit, var(--card-w)); justify-content: center; gap: 4px; min-height: var(--card-h); max-height: 140px; }
+    .hand { display: grid; grid-template-columns: repeat(auto-fit, var(--card-w)); justify-content: center; gap: 4px; min-height: calc(var(--card-h) + var(--card-h) + 4px); max-height: 140px; }
     .hand .card { cursor: pointer; }
     .hand-note { margin-top: 3px; color: var(--muted); text-align: center; font-size: 10px; }
     .middle { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: clamp(8px, 3vw, 28px); min-height: 0; padding: 3px 0; }
@@ -145,7 +145,7 @@
       .pile-label { font-size: 10px; }
       .card { font-size: 16px; }
       .card .rank { font-size: 23px; }
-      .hand { display: flex; flex-wrap: wrap; align-content: flex-start; min-height: var(--card-h); max-height: 102px; gap: 4px 0; overflow-x: hidden; overflow-y: auto; }
+      .hand { display: flex; flex-wrap: wrap; align-content: flex-start; min-height: calc(var(--card-h) + var(--card-h) + 4px); max-height: 102px; gap: 4px 0; overflow-x: hidden; overflow-y: auto; }
       .hand-card { position: relative; flex: 0 0 calc(var(--card-w) - 3px); }
       .hand-card.selected { z-index: 2; }
       .hand-wrap { padding-top: 6px; padding-bottom: 4px; }
@@ -345,7 +345,7 @@
     if (selectedBoard.mode === 'swap') { if (player !== 0) return showToast('You can only swap cards in your own sets.'); selectedBoard.setIndex = setIndex; selectedBoard.cardId = cardId; if (selectedBoard.handCardId) doSwap(selectedBoard.handCardId); else { state.message = 'Now tap a matching card in your hand.'; render(); } return; }
     if (selectedBoard.mode === 'flip') resolveFlip(player, setIndex, c);
   }
-  function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; rememberCard(c); animateCards([{ id: c.id, effect: 'flip-in' }]); selectedBoard = null; if (!cardMatches(c, value)) revealDestroyedSet(player, set, value, () => completeAction(`The ${value} set was moved beneath the draw pile. Choose a discard.`)); else animateMatchedFlip(set, c, () => completeAction('A match! Choose a card to discard.')); }
+  function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; rememberCard(c); animateCards([{ id: c.id, effect: 'flip-in' }]); selectedBoard = null; if (!cardMatches(c, value)) revealDestroyedSet(player, set, value, c, () => completeAction(`The ${value} set was shuffled beneath the discard pile. Choose a discard.`)); else animateMatchedFlip(set, c, () => completeAction('A match! Choose a card to discard.')); }
   function doSwap(id) { const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set?.cards.find(c => c.id === selectedBoard.cardId), value = set ? setValue(set) : null; if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.'); const at = state.hands[0].findIndex(c => c.id === id); rememberCard(hidden); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards); animateCards([{ id: handCard.id, effect: 'swap-in' }, { id: hidden.id, effect: 'swap-out' }]); const ai = setAI(set); ai.swappedSinceChallenge = true; ai.matchedChallenges = 0; completeAction(`Swap complete. ${cardLabel(hidden)} was revealed to BOT and returned to your hand. Choose a discard.`); }
   function openSetModal() { if (selected.size < 4) return showToast('Select at least 4 cards: 2 face-up and 2 hidden.'); if (state.finalPlayer === 0) return showToast('You cannot place a set on the final turn.'); modalLocked = false; pendingSet = [...selected].map(id => state.hands[0].find(c => c.id === id)); const hidden = new Set(pendingSet.slice(2).map(c => c.id)); $('modal').innerHTML = `<h2>Place your set</h2><p>Tap the cards you want to hide. Your set needs at least two matching face-up cards and two hidden cards.</p><div class="modal-cards">${pendingSet.map(c => `<div class="modal-card ${hidden.has(c.id) ? 'hidden-choice' : ''}" data-modal-card="${c.id}">${cardHTML(c)}</div>`).join('')}</div><div class="modal-footer"><button class="action" id="cancelSet">Cancel</button><button class="action primary" id="confirmSet">Place set</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('cancelSet').onclick = closeModal; $('confirmSet').onclick = confirmSet; $('confirmSet')._hidden = hidden; document.querySelectorAll('[data-modal-card]').forEach(el => el.onclick = () => { const id = el.dataset.modalCard; if (hidden.has(id)) hidden.delete(id); else hidden.add(id); el.classList.toggle('hidden-choice'); $('confirmSet')._hidden = hidden; }); }
   function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, including jokers, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => { c.faceUp = !hidden.has(c.id); if (c.faceUp) rememberCard(c); }); const set = { cards: orderSetCards(pendingSet) }; setAI(set); markSetPlaced(set); state.sets[0].push(set); closeModal(); completeAction(`Set of ${value}s placed. Choose a card to discard.`); }
@@ -360,18 +360,25 @@
       flyCard(card, fromRect, toRect, target, () => { if (serial !== gameSerial || state.over) return; state.resolving = false; done(); });
     }, 1000);
   }
-  function revealDestroyedSet(player, set, value, done) {
-    const serial = gameSerial; state.resolving = true; set.cards.forEach(card => { card.faceUp = true; rememberCard(card); }); animateCards(set.cards.map(card => ({ id: card.id, effect: 'flip-in' }))); state.message = `Mismatch! The ${value} set is destroyed.`; render();
-    setTimeout(() => { if (serial === gameSerial && !state.over) moveSetUnderDrawPile(player, set, done, serial); }, 2000);
+  function revealDestroyedSet(player, set, value, wrongCard, done) {
+    const serial = gameSerial; state.resolving = true; state.message = `Mismatch! ${cardLabel(wrongCard)} destroys the ${value} set.`; render();
+    setTimeout(() => {
+      if (serial !== gameSerial || state.over) return;
+      const hidden = set.cards.filter(card => !card.faceUp);
+      hidden.forEach(card => { card.faceUp = true; rememberCard(card); });
+      if (hidden.length) { animateCards(hidden.map(card => ({ id: card.id, effect: 'flip-in' }))); state.message = 'Revealing the rest of the destroyed set…'; render(); }
+      setTimeout(() => { if (serial === gameSerial && !state.over) moveSetUnderDiscardPile(player, set, done, serial); }, hidden.length ? 3000 : 0);
+    }, 2000);
   }
-  function moveSetUnderDrawPile(player, set, done, serial = gameSerial) {
-    const targetRect = $('drawPileCard').getBoundingClientRect(), flights = set.cards.map(card => ({ card, element: document.querySelector(`[data-card="${card.id}"]`) })).filter(item => item.element), finish = () => {
+  function moveSetUnderDiscardPile(player, set, done, serial = gameSerial) {
+    const targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect(), cards = [...set.cards]; shuffle(cards);
+    const flights = cards.map(card => ({ card, element: document.querySelector(`[data-card="${card.id}"]`) })).filter(item => item.element), finish = () => {
       if (serial !== gameSerial || state.over) return;
       const index = state.sets[player].indexOf(set); if (index >= 0) state.sets[player].splice(index, 1);
-      const cards = [...set.cards]; shuffle(cards); cards.forEach(card => delete card.faceUp); state.deck.unshift(...cards); state.resolving = false; done();
+      cards.forEach(card => delete card.faceUp); state.discard.unshift(...cards); state.resolving = false; done();
     };
     if (!flights.length) return finish();
-    let remaining = flights.length; state.message = 'Moving the destroyed set beneath the draw pile…';
+    let remaining = flights.length; state.message = 'Shuffling the destroyed set beneath the discard pile…';
     flights.forEach(({ card, element }, index) => { const fromRect = element.getBoundingClientRect(), toRect = { left: targetRect.left + index * 2, top: targetRect.top + index * 2, width: targetRect.width, height: targetRect.height }; setTimeout(() => flyCard(card, fromRect, toRect, element, () => { if (!--remaining) finish(); }), index * 90); });
   }
   function closeModal() { if (modalLocked) return; $('modalBackdrop').classList.add('hidden'); pendingSet = null; }
@@ -460,8 +467,8 @@
     target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]);
     if (!cardMatches(target, choice.value)) {
       state.botChallengeSet = null;
-      logBot(`BOT ${choice.continuing ? 'continued challenging' : 'challenged'} your set of ${choice.value}s and flipped ${cardLabel(target)}. It was a mismatch, so the set was moved beneath the draw pile.`);
-      state.botReport = state.botLog.join(' '); revealDestroyedSet(0, set, choice.value, scheduleBotEnd); return 'pending';
+      logBot(`BOT ${choice.continuing ? 'continued challenging' : 'challenged'} your set of ${choice.value}s and flipped ${cardLabel(target)}. It was a mismatch, so the set was shuffled beneath the discard pile.`);
+      state.botReport = state.botLog.join(' '); revealDestroyedSet(0, set, choice.value, target, scheduleBotEnd); return 'pending';
     } else {
       const ai = setAI(set); ai.matchedChallenges++; ai.swappedSinceChallenge = false;
       const remaining = set.cards.filter(c => !c.faceUp).length;
