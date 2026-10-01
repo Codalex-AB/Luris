@@ -205,7 +205,7 @@
     for (let round = 0; round < 2; round++) for (let value = 2; value <= 9; value++) for (const suit of SUITS) deck.push(card(value, suit));
     shuffle(deck);
     const startingPlayer = Math.random() < .5 ? 0 : 1;
-    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, resolving: false, finalPlayer: null, over: false, seenCards: new Map(), botChallengeSet: null, botReport: startingPlayer === 1 ? 'BOT starts' : 'You start', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
+    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, resolving: false, finalPlayer: null, over: false, seenCards: new Map(), botChallengeSet: null, botStrategy: Math.random() < .45 ? 'patient' : 'quick', botTurns: 0, botReport: startingPlayer === 1 ? 'BOT starts' : 'You start', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
     for (let i = 0; i < 10; i++) { state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop()); }
     state.hands[0].push(card('Joker', null, true)); state.hands[1].push(card('Joker', null, true));
     state.discard.push(deck.pop()); rememberCard(topDiscard());
@@ -473,9 +473,18 @@
     logBot(`Place set: ${plan.value}s (${plan.visible.length} up, ${plan.hidden.length} down)`);
     return true;
   }
+  function setNeedsCorrection(set) { const value = setValue(set); return set.cards.some(c => !c.faceUp && !cardMatches(c, value)); }
+  function botShouldDelaySet(plan) {
+    if (state.botStrategy !== 'patient' || state.deck.length < 18) return false;
+    const size = plan.visible.length + plan.hidden.length;
+    if (size >= 6 || (size >= 5 && plan.bluffs === 0)) return false;
+    if (state.botTurns <= 2) return true;
+    return state.deck.length > 24 && Math.random() < .65;
+  }
   function findOwnSwap(kind) {
     for (let setIndex = 0; setIndex < state.sets[1].length; setIndex++) {
       const set = state.sets[1][setIndex], value = setValue(set), hidden = set.cards.filter(c => !c.faceUp);
+      if (kind !== 'correction' && setNeedsCorrection(set)) continue;
       const target = hidden.find(c => kind === 'correction' ? !cardMatches(c, value) : kind === 'joker' ? c.joker : cardMatches(c, value) && !c.joker);
       const handIndex = state.hands[1].findIndex(c => cardMatches(c, value) && !c.joker);
       if (target && handIndex >= 0) return { set, setIndex, target, handIndex, value, kind };
@@ -491,7 +500,8 @@
   }
   function botSelfFlip() {
     for (let setIndex = 0; setIndex < state.sets[1].length; setIndex++) {
-      const set = state.sets[1][setIndex], value = setValue(set), target = set.cards.find(c => !c.faceUp && cardMatches(c, value) && !c.joker);
+      const set = state.sets[1][setIndex]; if (setNeedsCorrection(set)) continue;
+      const value = setValue(set), target = set.cards.find(c => !c.faceUp && cardMatches(c, value) && !c.joker);
       if (target) { target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]); logBot(`Flip: ${shortCardLabel(target)} in own ${value}s`); state.botReport = botReportText(); animateMatchedFlip(set, target, scheduleBotEnd); return true; }
     }
     return false;
@@ -535,7 +545,7 @@
     return projectedBotHand >= state.hands[0].length;
   }
   function botTurn() {
-    if (state.over) return; state.botLog = []; let discardMove = null, drawMove = null;
+    if (state.over) return; state.botLog = []; state.botTurns++; let discardMove = null, drawMove = null;
     if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`Take ${shortCardLabel(taken)}`); discardMove = { card: taken, sourceRect }; }
     else { const sourceRect = $('drawPileCard').getBoundingClientRect(), amount = Math.min(2, state.deck.length), cards = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[1].push(card); cards.push(card); } drawMove = { cards, sourceRect }; logBot(`Draw ${amount}`); if (!state.deck.length) state.finalPlayer = 1; }
     state.phase = 'action'; state.botReport = botReportText(); state.message = 'BOT is choosing an action…'; render();
@@ -553,11 +563,12 @@
     }
     const strongChallenge = chooseOpponentChallenge(finalTurn && !leading ? .38 : .66);
     if (strongChallenge) { state.botChallengeSet = state.sets[0][strongChallenge.setIndex]; const result = resolveBotChallenge(strongChallenge); if (result === 'pending') return; if (result) return scheduleBotEnd(); }
-    if (!finalTurn) {
-      const highValuePlan = buildBotSetPlan(true); if (highValuePlan && botPlaceSet(highValuePlan)) return scheduleBotEnd();
-      const normalPlan = buildBotSetPlan(false); if (normalPlan && (normalPlan.bluffs < 2 || state.deck.length < 20 || !state.sets[1].length) && botPlaceSet(normalPlan)) return scheduleBotEnd();
-    }
     const correction = findOwnSwap('correction'); if (correction) { performBotSwap(correction); return scheduleBotEnd(); }
+    if (!finalTurn) {
+      const highValuePlan = buildBotSetPlan(true), normalPlan = highValuePlan ? null : buildBotSetPlan(false), plan = highValuePlan || normalPlan;
+      const acceptable = plan && (highValuePlan || plan.bluffs < 2 || state.deck.length < 20 || !state.sets[1].length);
+      if (acceptable && !botShouldDelaySet(plan) && botPlaceSet(plan)) return scheduleBotEnd();
+    }
     const moderateChallenge = chooseOpponentChallenge(finalTurn && !leading ? .25 : .52); if (moderateChallenge) { state.botChallengeSet = state.sets[0][moderateChallenge.setIndex]; const result = resolveBotChallenge(moderateChallenge); if (result === 'pending') return; if (result) return scheduleBotEnd(); }
     if (botSelfFlip()) return;
     const jokerRetrieval = findOwnSwap('joker'); if (jokerRetrieval) { performBotSwap(jokerRetrieval); return scheduleBotEnd(); }
