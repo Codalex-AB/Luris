@@ -80,7 +80,10 @@
     .card.draw-in { animation: draw-in .6s ease both; }
     .card.discard-out { animation: discard-out .52s ease forwards; }
     .card.discard-in { animation: discard-in .55s ease both; }
+    .set.placing { animation: place-set .72s cubic-bezier(.2,.8,.2,1) both; }
     .set.destroying { animation: destroy-set .72s ease forwards; pointer-events: none; }
+    .flying-card { position: fixed; z-index: 20; pointer-events: none; transform-origin: top left; transition: transform .68s cubic-bezier(.2,.75,.2,1), opacity .68s ease; filter: drop-shadow(0 12px 14px rgba(0,0,0,.35)); }
+    .flying-card .card { width: 100%; height: 100%; }
     .card .corner { position: absolute; top: 4px; left: 5px; font-size: 13px; line-height: 1; }
     .card .rank { font-size: 27px; line-height: 1; letter-spacing: -.04em; }
     .card .suit { position: absolute; right: 5px; bottom: 3px; font-size: 14px; line-height: 1; opacity: .9; }
@@ -129,28 +132,31 @@
     @keyframes draw-in { 0% { opacity: 0; transform: translateY(-24px) rotate(-7deg) scale(.72); } 70% { box-shadow: 0 0 20px var(--gold); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
     @keyframes discard-out { to { opacity: 0; transform: translateY(-34px) rotate(12deg) scale(.65); } }
     @keyframes discard-in { 0% { opacity: 0; transform: translateY(-22px) rotate(-8deg) scale(.75); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
+    @keyframes place-set { 0% { opacity: 0; transform: translateY(26px) scale(.72); } 65% { box-shadow: 0 0 24px rgba(228,185,108,.55); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes destroy-set { 0% { opacity: 1; transform: scale(1); filter: saturate(1); } 35% { transform: scale(1.06) rotate(-1deg); filter: saturate(1.8); box-shadow: 0 0 25px var(--coral); } 100% { opacity: 0; transform: scale(.55) translateY(24px) rotate(5deg); filter: saturate(.3); } }
-    @media (prefers-reduced-motion: reduce) { .card.flip-in, .card.swap-in, .card.swap-out, .card.draw-in, .card.discard-out, .card.discard-in, .set.destroying { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .card.flip-in, .card.swap-in, .card.swap-out, .card.draw-in, .card.discard-out, .card.discard-in, .set.placing, .set.destroying { animation: none; } .flying-card { transition: none; } }
     @media (max-width: 620px) {
-      :root { --card-w: 40px; --card-h: 57px; }
+      :root { --card-w: 34px; --card-h: 49px; }
       .topbar { padding: 7px 10px; }
       .brand-tag { display: none; }
       .top-actions .ghost-btn { padding: 8px 10px; font-size: 12px; }
       .game-head { padding: 2px 0 6px; }
       .subtitle { display: none; }
-      .table { border-radius: 18px; padding: 8px; grid-template-rows: minmax(68px, 1fr) 66px minmax(68px, 1fr) auto auto auto; }
+      .table { border-radius: 18px; padding: 8px; grid-template-rows: minmax(62px, 1fr) 58px minmax(62px, 1fr) auto auto auto; }
       .middle { column-gap: 8px; }
       .pile-label { font-size: 10px; }
-      .card { font-size: 18px; }
-      .hand { display: flex; flex-wrap: nowrap; min-height: var(--card-h); max-height: var(--card-h); overflow: hidden; }
-      .hand-card { flex: 0 0 var(--card-w); }
-      .hand-card + .hand-card { margin-left: -12px; }
+      .card { font-size: 16px; }
+      .card .rank { font-size: 23px; }
+      .hand { display: flex; flex-wrap: wrap; align-content: flex-start; min-height: var(--card-h); max-height: 102px; gap: 4px 0; overflow-x: hidden; overflow-y: auto; }
+      .hand-card { position: relative; flex: 0 0 calc(var(--card-w) - 3px); }
+      .hand-card.selected { z-index: 2; }
       .hand-wrap { padding-top: 6px; padding-bottom: 4px; }
-      .set { min-height: 48px; padding: 3px; }
-      .set .card { width: 35px; height: 50px; font-size: 16px; }
-      .set .card .rank { font-size: 21px; }
-      .set .card .suit { font-size: 11px; }
-      .set .card .corner { font-size: 11px; }
+      .set { min-height: 43px; padding: 3px; }
+      .set .card { width: 30px; height: 43px; font-size: 14px; }
+      .set .card:not(.face-down) + .card:not(.face-down) { margin-left: -8px; }
+      .set .card .rank { font-size: 19px; }
+      .set .card .suit { font-size: 10px; }
+      .set .card .corner { font-size: 10px; }
       .action { min-height: 32px; padding: 5px 9px; font-size: 12px; }
     }
     @media (max-height: 650px) {
@@ -163,9 +169,6 @@
       .card { font-size: 17px; }
       .hand { min-height: var(--card-h); max-height: 112px; }
       .hand-note { display: none; }
-    }
-    @media (max-width: 380px) {
-      .hand-card + .hand-card { margin-left: -18px; }
     }
   </style>
 </head>
@@ -216,6 +219,15 @@
   function orderSetCards(cards) { const faceUp = cards.filter(c => c.faceUp), faceDown = cards.filter(c => !c.faceUp); shuffle(faceUp); shuffle(faceDown); return [...faceUp, ...faceDown]; }
   function animateCards(items) { clearTimeout(animationTimer); cardAnimations = new Map(items.map(item => [item.id, item.effect])); animationTimer = setTimeout(() => cardAnimations.clear(), 900); }
   function animationClass(id) { return cardAnimations.get(id) || ''; }
+  function flyCard(card, fromRect, toRect, hiddenElement, done) {
+    if (!fromRect || !toRect) { if (done) done(); return; }
+    const ghost = document.createElement('div'); ghost.className = 'flying-card'; ghost.innerHTML = cardHTML({...card, faceUp: true});
+    Object.assign(ghost.style, { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px` });
+    document.body.appendChild(ghost); if (hiddenElement) hiddenElement.style.opacity = '0';
+    requestAnimationFrame(() => { ghost.style.transform = `translate(${toRect.left - fromRect.left}px, ${toRect.top - fromRect.top}px) scale(${toRect.width / fromRect.width}, ${toRect.height / fromRect.height})`; ghost.style.opacity = '.92'; });
+    setTimeout(() => { ghost.remove(); if (hiddenElement?.isConnected) hiddenElement.style.opacity = ''; if (done) done(); }, 700);
+  }
+  function cardSizedRectAt(element, width, height) { const rect = element?.getBoundingClientRect(); return rect ? { left: rect.left + (rect.width - width) / 2, top: rect.top + (rect.height - height) / 2, width, height } : null; }
   function sortHand(hand) { hand.sort((a, b) => (a.joker ? 99 : a.value) - (b.joker ? 99 : b.value) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)); }
   function topDiscard() { return state.discard[state.discard.length - 1]; }
   function isHumanTurn() { return state.turn === 0 && !state.over; }
@@ -224,8 +236,10 @@
   function cardLabel(c) { return c.joker ? 'the joker' : `${c.value}${c.suit}`; }
   function rememberCard(c) { if (c) state.seenCards.set(c.id, c); }
   function setAI(set) { return set.ai ||= { createdTurn: state.turnNumber, matchingDiscardSeen: false, swappedSinceChallenge: false, matchedChallenges: 0 }; }
+  function markSetPlaced(set) { const serial = gameSerial; set.placing = true; setTimeout(() => { if (serial === gameSerial) delete set.placing; }, 800); }
   function logBot(text) { state.botLog.push(text); }
   function setValue(set) { const visible = set.cards.find(c => c.faceUp && !c.joker); return visible ? visible.value : null; }
+  function canHumanSwap() { return state.sets[0].some(set => set.cards.some(card => !card.faceUp) && state.hands[0].some(card => cardMatches(card, setValue(set)))); }
   function cardHTML(c, interactive = false, extraClass = '') {
     const down = c.faceUp === false;
     const classes = ['card']; if (extraClass) classes.push(extraClass); if (!down && (c.suit === '♥' || c.suit === '♦')) classes.push('red'); if (c.joker && !down) classes.push('joker'); if (down) classes.push('face-down');
@@ -255,13 +269,13 @@
   function renderSets(player, target) {
     if (!state.sets[player].length) { target.innerHTML = '<div class="empty">No sets on the table yet.</div>'; return; }
     const ownSet = player === 0;
-    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' && !state.actionTaken ? 'selectable' : ''} ${ownSet ? 'inspectable' : ''} ${set.destroying ? 'destroying' : ''}" data-set="${player}:${index}" ${ownSet ? 'title="View your hidden cards" aria-label="View your set"' : ''}>${set.cards.map(c => { const selectedClass = selectedBoard?.mode === 'swap' && selectedBoard.setIndex === index && selectedBoard.cardId === c.id && ownSet ? 'table-selected' : ''; return cardHTML(c, isHumanTurn() && state.phase === 'action' && !state.actionTaken && !c.faceUp, `${selectedClass} ${animationClass(c.id)}`.trim()); }).join('')}</div>`).join('');
+    target.innerHTML = state.sets[player].map((set, index) => `<div class="set ${isHumanTurn() && state.phase === 'action' && !state.actionTaken ? 'selectable' : ''} ${ownSet ? 'inspectable' : ''} ${set.placing ? 'placing' : ''} ${set.destroying ? 'destroying' : ''}" data-set="${player}:${index}" ${ownSet ? 'title="View your hidden cards" aria-label="View your set"' : ''}>${set.cards.map(c => { const selectedClass = selectedBoard?.mode === 'swap' && selectedBoard.setIndex === index && selectedBoard.cardId === c.id && ownSet ? 'table-selected' : ''; return cardHTML(c, isHumanTurn() && state.phase === 'action' && !state.actionTaken && !c.faceUp, `${selectedClass} ${animationClass(c.id)}`.trim()); }).join('')}</div>`).join('');
   }
   function formatClock(ms) { const total = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`; }
   function renderClocks() { [0, 1].forEach(player => { const el = $(player === 0 ? 'humanClock' : 'botClock'); el.textContent = formatClock(state.clocks[player]); el.classList.toggle('active', !state.over && state.turn === player); el.classList.toggle('low', state.clocks[player] <= 30000); }); }
   function tickClock() { if (!state || state.over) return; const now = performance.now(), player = state.turn; state.clocks[player] = Math.max(0, state.clocks[player] - (now - clockLast)); clockLast = now; renderClocks(); if (!state.clocks[player]) finishByClock(player); }
   function switchTurn(player) { tickClock(); if (state.over) return false; state.turn = player; clockLast = performance.now(); renderClocks(); return true; }
-  function scheduleBotTurn(serial = gameSerial) { setTimeout(() => { if (serial === gameSerial && state && !state.over && state.turn === 1) botTurn(); }, 1000); }
+  function scheduleBotTurn(serial = gameSerial) { setTimeout(() => { if (serial === gameSerial && state && !state.over && state.turn === 1) botTurn(); }, 3000); }
   function finishByClock(loser) { if (state.over) return; state.over = true; state.phase = 'over'; clearInterval(clockTimer); state.message = loser === 0 ? 'Your clock ran out. BOT wins.' : 'BOT’s clock ran out. You win.'; render(); modalLocked = false; $('modal').innerHTML = `<h2>${loser === 0 ? 'BOT wins on time.' : 'You win on time!'}</h2><p>${loser === 0 ? 'Your ten-minute clock reached zero.' : 'BOT’s ten-minute clock reached zero.'}</p><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = freshGame; }
   function renderControls() {
     const c = $('controls'); c.innerHTML = '';
@@ -277,7 +291,7 @@
     } else {
       addButton(c, 'Place set', openSetModal, 'primary', selected.size < 4 || state.finalPlayer === 0);
       addButton(c, 'Flip a card', beginFlip, '', !state.sets.flat().some(set => set.cards.some(card => !card.faceUp)));
-      addButton(c, 'Swap a card', beginSwap, '', !state.sets[0].some(set => set.cards.some(card => !card.faceUp)));
+      addButton(c, 'Swap a card', beginSwap, '', !canHumanSwap());
       addButton(c, 'Pass', passAction, '', false);
     }
   }
@@ -287,7 +301,13 @@
     const amount = Math.min(2, state.deck.length), drawn = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[0].push(card); drawn.push({ id: card.id, effect: 'draw-in' }); } animateCards(drawn);
     state.phase = 'action'; state.actionTaken = false; if (!state.deck.length) state.finalPlayer = 0; state.message = state.finalPlayer === 0 ? 'Final turn: choose flip, swap, or pass.' : 'Choose one action.'; render();
   }
-  function takeDiscard() { if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return; const taken = state.discard.pop(); state.hands[0].push(taken); animateCards([{ id: taken.id, effect: 'draw-in' }]); state.phase = 'action'; state.actionTaken = false; state.message = 'Choose one action.'; render(); }
+  function takeDiscard() {
+    if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return;
+    const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(), serial = gameSerial;
+    state.hands[0].push(taken); state.phase = 'action'; state.actionTaken = false; state.resolving = true; state.message = 'Taking the discard…'; render();
+    const target = document.querySelector(`#hand [data-card="${taken.id}"]`), targetRect = target?.getBoundingClientRect();
+    flyCard(taken, sourceRect, targetRect, target, () => { if (serial !== gameSerial || state.over) return; state.resolving = false; state.message = 'Choose one action.'; render(); });
+  }
   function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = message; render(); }
   function passAction() { completeAction('You passed. Choose a card to discard.'); }
   function cancelAction() { selectedBoard = null; selected.clear(); state.message = 'Choose one action.'; render(); }
@@ -296,21 +316,22 @@
     if (state.hands[0].length && !selected.size) { showToast('Select one card from your hand to discard.'); return; }
     const discardId = selected.size ? [...selected][0] : null;
     if (!discardId) return finishHumanTurn();
-    const serial = gameSerial;
-    state.resolving = true; state.message = 'Discarding your selected card…'; animateCards([{ id: discardId, effect: 'discard-out' }]); render();
-    setTimeout(() => {
+    const serial = gameSerial, discarded = state.hands[0].find(c => c.id === discardId);
+    state.resolving = true; state.message = 'Discarding your selected card…'; render();
+    const source = document.querySelector(`#hand [data-card="${discardId}"]`), sourceRect = source?.getBoundingClientRect(), targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
+    flyCard(discarded, sourceRect, targetRect, source, () => {
       if (serial !== gameSerial || state.over) return;
       const at = state.hands[0].findIndex(c => c.id === discardId);
       if (at >= 0) {
-        const discarded = state.hands[0].splice(at, 1)[0]; state.discard.push(discarded); rememberCard(discarded); animateCards([{ id: discarded.id, effect: 'discard-in' }]);
-        state.sets[0].forEach(set => { if (setValue(set) === discarded.value) setAI(set).matchingDiscardSeen = true; });
+        const card = state.hands[0].splice(at, 1)[0]; state.discard.push(card); rememberCard(card);
+        state.sets[0].forEach(set => { if (setValue(set) === card.value) setAI(set).matchingDiscardSeen = true; });
       }
       state.resolving = false; finishHumanTurn();
-    }, 540);
+    });
   }
   function finishHumanTurn() { selected.clear(); selectedBoard = null; if (state.finalPlayer === 0) return finishGame(); state.turnNumber++; if (!switchTurn(1)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'BOT is thinking…'; render(); scheduleBotTurn(); }
   function beginFlip() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets.flat().some(set => set.cards.some(c => !c.faceUp))) return showToast('There are no face-down cards to flip.'); selected.clear(); selectedBoard = { mode: 'flip' }; state.message = 'Tap any face-down card in either player’s sets.'; render(); }
-  function beginSwap() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!state.sets[0].some(set => set.cards.some(c => !c.faceUp))) return showToast('You have no face-down cards to swap.'); const handCardId = selected.size === 1 ? [...selected][0] : null; if (!handCardId) selected.clear(); selectedBoard = { mode: 'swap', handCardId }; state.message = handCardId ? 'Now tap one of your face-down cards.' : 'Choose a card in your hand or one of your face-down cards.'; render(); }
+  function beginSwap() { if (!isHumanTurn() || state.phase !== 'action' || state.actionTaken) return; if (!canHumanSwap()) return showToast('You have no card that can swap into one of your sets.'); const handCardId = selected.size === 1 ? [...selected][0] : null; if (!handCardId) selected.clear(); selectedBoard = { mode: 'swap', handCardId }; state.message = handCardId ? 'Now tap one of your face-down cards.' : 'Choose a card in your hand or one of your face-down cards.'; render(); }
   function onHandCard(id) {
     if (!isHumanTurn()) return;
     if (selectedBoard?.mode === 'swap') { selected.clear(); selected.add(id); selectedBoard.handCardId = id; if (selectedBoard.setIndex !== undefined) doSwap(id); else { state.message = 'Now tap one of your face-down cards.'; render(); } return; }
@@ -325,7 +346,7 @@
   function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; rememberCard(c); animateCards([{ id: c.id, effect: 'flip-in' }]); if (!cardMatches(c, value)) { set.cards.forEach(x => x.faceUp = true); showDestroyedSet(player, set, value); } else { set.cards = orderSetCards(set.cards); completeAction('A match! Choose a card to discard.'); } }
   function doSwap(id) { const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set?.cards.find(c => c.id === selectedBoard.cardId), value = set ? setValue(set) : null; if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.'); const at = state.hands[0].findIndex(c => c.id === id); rememberCard(hidden); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards); animateCards([{ id: handCard.id, effect: 'swap-in' }, { id: hidden.id, effect: 'swap-out' }]); const ai = setAI(set); ai.swappedSinceChallenge = true; ai.matchedChallenges = 0; completeAction(`Swap complete. ${cardLabel(hidden)} was revealed to BOT and returned to your hand. Choose a discard.`); }
   function openSetModal() { if (selected.size < 4) return showToast('Select at least 4 cards: 2 face-up and 2 hidden.'); if (state.finalPlayer === 0) return showToast('You cannot place a set on the final turn.'); modalLocked = false; pendingSet = [...selected].map(id => state.hands[0].find(c => c.id === id)); const hidden = new Set(pendingSet.slice(2).map(c => c.id)); $('modal').innerHTML = `<h2>Place your set</h2><p>Tap the cards you want to hide. Your set needs at least two matching face-up cards and two hidden cards.</p><div class="modal-cards">${pendingSet.map(c => `<div class="modal-card ${hidden.has(c.id) ? 'hidden-choice' : ''}" data-modal-card="${c.id}">${cardHTML(c)}</div>`).join('')}</div><div class="modal-footer"><button class="action" id="cancelSet">Cancel</button><button class="action primary" id="confirmSet">Place set</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('cancelSet').onclick = closeModal; $('confirmSet').onclick = confirmSet; $('confirmSet')._hidden = hidden; document.querySelectorAll('[data-modal-card]').forEach(el => el.onclick = () => { const id = el.dataset.modalCard; if (hidden.has(id)) hidden.delete(id); else hidden.add(id); el.classList.toggle('hidden-choice'); $('confirmSet')._hidden = hidden; }); }
-  function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, including jokers, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => { c.faceUp = !hidden.has(c.id); if (c.faceUp) rememberCard(c); }); const set = { cards: orderSetCards(pendingSet) }; setAI(set); state.sets[0].push(set); closeModal(); completeAction(`Set of ${value}s placed. Choose a card to discard.`); }
+  function confirmSet() { const hidden = $('confirmSet')._hidden || new Set(); const visible = pendingSet.filter(c => !hidden.has(c.id)); const faceValues = visible.filter(c => !c.joker).map(c => c.value); const value = faceValues[0]; if (hidden.size < 2 || visible.length < 2 || !value || faceValues.some(v => v !== value)) return showToast('Keep at least two matching cards face-up, including jokers, plus two hidden cards.'); const ids = new Set(pendingSet.map(c => c.id)); state.hands[0] = state.hands[0].filter(c => !ids.has(c.id)); pendingSet.forEach(c => { c.faceUp = !hidden.has(c.id); if (c.faceUp) rememberCard(c); }); const set = { cards: orderSetCards(pendingSet) }; setAI(set); markSetPlaced(set); state.sets[0].push(set); closeModal(); completeAction(`Set of ${value}s placed. Choose a card to discard.`); }
   function showOwnSet(setIndex) { const set = state.sets[0][setIndex]; if (!set) return; modalLocked = false; $('modal').innerHTML = `<h2>Your set of ${setValue(set)}s</h2><p>Only you may look at these face-down cards. Nothing on the table has been changed.</p><div class="modal-cards">${set.cards.map(c => cardHTML({...c, faceUp: true})).join('')}</div><div class="modal-footer"><button class="action primary" id="closeOwnSet">Close</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('closeOwnSet').onclick = closeModal; }
   function showDestroyedSet(player, set, value) { pendingDestroyed = { player, set, value }; modalLocked = true; const owner = player === 1 ? "BOT's" : 'your'; $('modal').innerHTML = `<h2>Set destroyed</h2><p>The hidden card did not match. Review every card in ${owner} set of ${value}s before the complete set is shuffled underneath the discard pile.</p><div class="modal-cards">${set.cards.map(c => cardHTML({...c, faceUp: true}, false, animationClass(c.id))).join('')}</div><div class="modal-footer"><button class="action primary" id="discardDestroyed">Shuffle under discard</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('discardDestroyed').onclick = finalizeDestroyedSet; }
   function animateSetDestruction(player, set, done) {
@@ -390,7 +411,7 @@
     const chosen = [...plan.visible, ...plan.hidden], ids = new Set(chosen.map(c => c.id));
     state.hands[1] = state.hands[1].filter(c => !ids.has(c.id));
     const set = { cards: orderSetCards(chosen.map((c, index) => ({ ...c, faceUp: index < plan.visible.length }))) };
-    set.cards.filter(c => c.faceUp).forEach(rememberCard); setAI(set); state.sets[1].push(set);
+    set.cards.filter(c => c.faceUp).forEach(rememberCard); setAI(set); markSetPlaced(set); state.sets[1].push(set);
     logBot(`BOT placed a set of ${plan.value}s with ${plan.visible.length} face-up and ${plan.hidden.length} face-down cards.`);
     return true;
   }
@@ -425,7 +446,7 @@
       state.botChallengeSet = null;
       set.cards.forEach(c => { c.faceUp = true; rememberCard(c); });
       logBot(`BOT ${choice.continuing ? 'continued challenging' : 'challenged'} your set of ${choice.value}s and flipped ${cardLabel(target)}. It was a mismatch, so the set was shuffled underneath the discard pile.`);
-      state.botReport = state.botLog.join(' '); state.message = `${state.botReport} The set is being destroyed…`;
+      state.botReport = state.botLog.join(' '); state.message = 'The set is being destroyed…';
       animateSetDestruction(0, set, scheduleBotEnd); return 'pending';
     } else {
       set.cards = orderSetCards(set.cards); const ai = setAI(set); ai.matchedChallenges++; ai.swappedSinceChallenge = false;
@@ -458,13 +479,14 @@
     return projectedBotHand >= state.hands[0].length;
   }
   function botTurn() {
-    if (state.over) return; state.botLog = [];
-    if (botShouldTakeDiscard()) { const taken = state.discard.pop(); state.hands[1].push(taken); logBot(`BOT took ${cardLabel(taken)} from the discard pile.`); }
+    if (state.over) return; state.botLog = []; let discardMove = null;
+    if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`BOT took ${cardLabel(taken)} from the discard pile.`); discardMove = { card: taken, sourceRect }; }
     else { const amount = Math.min(2, state.deck.length); for (let i = 0; i < amount; i++) state.hands[1].push(state.deck.pop()); logBot(`BOT drew ${amount === 1 ? 'the final card' : `${amount} cards`}.`); if (!state.deck.length) state.finalPlayer = 1; }
-    state.phase = 'action'; state.botReport = state.botLog.join(' '); state.message = `${state.botReport} BOT is choosing an action…`; render();
-    const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 1000);
+    state.phase = 'action'; state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing an action…'; render();
+    if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botHandCount'), discardMove.sourceRect.width, discardMove.sourceRect.height));
+    const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 3000);
   }
-  function scheduleBotEnd() { state.botReport = state.botLog.join(' '); state.message = `${state.botReport} BOT is choosing a discard…`; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 1000); }
+  function scheduleBotEnd() { state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 3000); }
   function botAction() {
     const finalTurn = state.finalPlayer === 1, leading = faceUpCount(1) >= faceUpCount(0);
     if (state.botChallengeSet) {
@@ -497,15 +519,18 @@
     return bestIndex;
   }
   function botEnd() {
-    if (state.hands[1].length) { const discarded = state.hands[1].splice(botDiscardIndex(), 1)[0]; state.discard.push(discarded); rememberCard(discarded); animateCards([{ id: discarded.id, effect: 'discard-in' }]); logBot(`BOT discarded ${cardLabel(discarded)}.`); }
-    state.botReport = state.botLog.join(' '); if (state.finalPlayer === 1) return finishGame();
-    state.turnNumber++; if (!switchTurn(0)) return; state.phase = 'draw'; state.actionTaken = false; state.message = `${state.botReport} Your turn: draw two cards or take the discard.`; render();
+    if (!state.hands[1].length) return finishBotTurn();
+    const serial = gameSerial, index = botDiscardIndex(), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
+    const sourceRect = cardSizedRectAt($('botHandCount'), targetRect.width, targetRect.height);
+    state.message = 'BOT is discarding…'; render();
+    flyCard(discarded, sourceRect, targetRect, null, () => { if (serial !== gameSerial || state.over || state.turn !== 1) return; state.hands[1].splice(index, 1); state.discard.push(discarded); rememberCard(discarded); logBot(`BOT discarded ${cardLabel(discarded)}.`); finishBotTurn(); });
   }
+  function finishBotTurn() { state.botReport = state.botLog.join(' '); if (state.finalPlayer === 1) return finishGame(); state.turnNumber++; if (!switchTurn(0)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'Your turn: draw two cards or take the discard.'; render(); }
   function winner() { const scores = [faceUpCount(0), faceUpCount(1)]; if (scores[0] !== scores[1]) return scores[0] > scores[1] ? 0 : 1; if (state.hands[0].length !== state.hands[1].length) return state.hands[0].length > state.hands[1].length ? 0 : 1; return -1; }
   function finishGame() { tickClock(); if (state.over) return; state.over = true; state.phase = 'over'; clearInterval(clockTimer); const scores = [faceUpCount(0), faceUpCount(1)], wonBy = winner(); state.message = wonBy < 0 ? `It’s a draw at ${scores[0]} points.` : wonBy === 0 ? `You win ${scores[0]}–${scores[1]}!` : `BOT wins ${scores[1]}–${scores[0]}.`; render(); setTimeout(() => showResult(scores, wonBy), 300); }
   function showResult(scores, wonBy) { modalLocked = false; const title = wonBy < 0 ? 'A perfectly close game.' : wonBy === 0 ? 'You win!' : 'BOT wins!'; $('modal').innerHTML = `<h2>${title}</h2><p>${scores[0] === scores[1] && wonBy >= 0 ? `Points were tied; cards in hand decided the winner.` : wonBy < 0 ? 'Both points and cards in hand are tied.' : 'Every hidden card was a calculated risk.'}</p><div class="result-score"><div><strong>${scores[0]}</strong><span>Your points</span></div><div><strong>${scores[1]}</strong><span>BOT points</span></div></div><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = () => { closeModal(); freshGame(); }; }
   function showToast(text) { $('toast').textContent = text; $('toast').classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2800); }
-  function showRules() { modalLocked = false; $('modal').innerHTML = '<h2>How to play</h2><p><strong>Setup:</strong> The game uses the 2–10 cards from two standard decks with identical backs. Each player receives 10 cards plus one joker. The remaining cards form the draw pile; turn its top card face-up to begin the discard pile. The starting player is chosen randomly.</p><p>Both players have ten minutes. Your clock runs throughout your turn; reaching zero loses the game. BOT has no access to your hidden cards and makes decisions only from its own cards and information that has been publicly revealed.</p><p>On your turn, draw two cards (or take the top discard), then choose one action: place a set, flip a hidden card, swap a hidden card for a matching card from your hand, or pass. Finally, discard one card to end your turn.</p><p>A set needs at least two matching cards face-up and two cards face-down. A joker counts as a matching face-up card. Face-down cards can be bluffs. You may privately review your own hidden cards at any time.</p><p>After a swap, the removed hidden card is revealed before returning to its owner’s hand. If a reveal does not match, review all its cards, shuffle the complete set, and place it underneath the discard pile.</p><p>Drawing the last card starts that player’s final turn, during which a new set cannot be placed. The player with the most face-up cards—shown as points—wins. A points tie is decided by most cards in hand.</p><div class="modal-footer"><button class="action primary" id="closeRules">Got it</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('closeRules').onclick = closeModal; }
+  function showRules() { modalLocked = false; $('modal').innerHTML = '<h2>How to play</h2><p>You and BOT start with 10 cards and a joker. <strong>Goal:</strong> finish with more face-up cards—your points—than BOT.</p><p><strong>Each turn:</strong> Draw two cards or take the discard. Choose one action. Then discard one card to end your turn.</p><p><strong>Place set:</strong> Put down at least two matching cards face-up and at least two cards face-down. Hidden cards may match—or be bluffs.<br><strong>Flip:</strong> Reveal any hidden card. A match earns its owner a point. A mismatch destroys the whole set.<br><strong>Swap:</strong> Replace one hidden card in your set with a matching card from your hand.<br><strong>Pass:</strong> Take no action.</p><p>The joker matches every set. You may look at your own hidden cards whenever you like.</p><p>Drawing the last card starts your final turn, and you cannot place a new set. Most points wins; tied points are decided by cards left in hand.</p><p>You and BOT each have ten minutes. BOT cannot see your hidden cards—it plays only from its own cards and public information.</p><div class="modal-footer"><button class="action primary" id="closeRules">Got it</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('closeRules').onclick = closeModal; }
   function showNewGameModal() { modalLocked = false; $('modal').innerHTML = '<h2>Start a new game?</h2><p>The current game will be replaced with a fresh game against BOT.</p><div class="modal-footer"><button class="action" id="cancelNewGame">Cancel</button><button class="action primary" id="confirmNewGame">Start new game</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('cancelNewGame').onclick = closeModal; $('confirmNewGame').onclick = freshGame; }
   document.addEventListener('click', e => { const handCard = e.target.closest('[data-card]'); if (handCard && handCard.closest('#hand')) { onHandCard(handCard.dataset.card); return; } const setEl = e.target.closest('[data-set]'); if (setEl) { const [player, setIndex] = setEl.dataset.set.split(':').map(Number), boardCard = e.target.closest('[data-card]'); if (boardCard && selectedBoard) { onBoardCard(player, setIndex, boardCard.dataset.card); return; } if (isHumanTurn() && player === 0 && !selectedBoard) { showOwnSet(setIndex); return; } } const discard = e.target.closest('#discardCard [data-card]'); if (discard && isHumanTurn() && state.phase === 'draw') takeDiscard(); });
   $('rulesBtn').onclick = showRules; $('newGameBtn').onclick = showNewGameModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
