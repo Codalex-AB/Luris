@@ -370,6 +370,16 @@
     }
     return arrangements;
   }
+  function defaultSetHidden(cards, fallback) {
+    const fallbackValue = cards.find(c => !fallback.has(c.id) && !c.joker)?.value;
+    const groups = [...new Set(cards.filter(c => !c.joker).map(c => c.value))]
+      .map(value => cards.filter(c => !c.joker && c.value === value))
+      .filter(group => group.length >= 2)
+      .sort((a, b) => Number(b[0].value === fallbackValue) - Number(a[0].value === fallbackValue) || b.length - a.length);
+    if (!groups.length) return fallback;
+    const visible = new Set(groups[0].slice(0, 2).map(c => c.id));
+    return new Set(cards.filter(c => !visible.has(c.id)).map(c => c.id));
+  }
   function openSetModal() {
     if (selected.size < 4) return showToast('Select at least 4 cards: 2 face-up and 2 hidden.');
     if (state.finalPlayer === 0) return showToast('You cannot place a set on the final turn.');
@@ -377,7 +387,7 @@
     const arrangements = setArrangements(pendingSet);
     if (!arrangements.length) { pendingSet = null; return showToast('Select at least two matching face-up cards and two cards to hide.'); }
     if (arrangements.length === 1) return placePendingSet(arrangements[0]);
-    modalLocked = false; const hidden = arrangements[0];
+    modalLocked = false; const hidden = defaultSetHidden(pendingSet, arrangements[0]);
     $('modal').innerHTML = `<h2>Place your set</h2><p>Tap the cards you want to hide. Your set needs at least two matching face-up cards and two hidden cards.</p><div class="modal-cards">${pendingSet.map(c => `<div class="modal-card ${hidden.has(c.id) ? 'hidden-choice' : ''}" data-modal-card="${c.id}">${cardHTML(c)}</div>`).join('')}</div><div class="modal-footer"><button class="action" id="cancelSet">Cancel</button><button class="action primary" id="confirmSet">Place set</button></div>`;
     $('modalBackdrop').classList.remove('hidden'); $('cancelSet').onclick = closeModal; $('confirmSet').onclick = confirmSet; $('confirmSet')._hidden = hidden;
     document.querySelectorAll('[data-modal-card]').forEach(el => el.onclick = () => { const id = el.dataset.modalCard; if (hidden.has(id)) hidden.delete(id); else hidden.add(id); el.classList.toggle('hidden-choice'); $('confirmSet')._hidden = hidden; });
@@ -445,6 +455,16 @@
     const frequencies = Object.fromEntries(Object.entries(groups).map(([value, cards]) => [value, cards.length]));
     const plans = [], doubleBluffAllowed = state.deck.length < 5 && faceUpCount(1) < faceUpCount(0);
     Object.values(groups).filter(group => group.length >= 2).forEach(group => {
+      if (state.botStrategy === 'patient' && group.length >= 4 && hand.length >= 6) {
+        const visible = group.slice(0, 3), remaining = hand.filter(c => !visible.includes(c));
+        const correct = remaining.filter(c => cardMatches(c, group[0].value));
+        const incorrect = remaining.filter(c => !cardMatches(c, group[0].value)).sort((a, b) => (frequencies[a.value] || 0) - (frequencies[b.value] || 0));
+        const hidden = [...correct, ...incorrect.slice(0, 1)];
+        if (hidden.length >= 2) {
+          const bluffs = hidden.filter(c => !cardMatches(c, group[0].value)).length;
+          plans.push({ value: group[0].value, visible, hidden, bluffs, score: 100 + visible.length * 12 + (hidden.length - bluffs) * 8 - bluffs * 6 + hidden.length + Math.random() });
+        }
+      }
       const maxVisible = Math.min(group.length, hand.length - 2, 4);
       const visibleCounts = highValueOnly ? Array.from({ length: Math.max(0, maxVisible - 2) }, (_, i) => maxVisible - i) : [2];
       visibleCounts.forEach(visibleCount => {
@@ -475,6 +495,11 @@
   }
   function setNeedsCorrection(set) { const value = setValue(set); return set.cards.some(c => !c.faceUp && !cardMatches(c, value)); }
   function botShouldDelaySet(plan) {
+    if (plan.bluffs) {
+      const bluffChance = state.deck.length > 30 ? .06 : state.deck.length > 18 ? .28 : state.deck.length > 8 ? .72 : 1;
+      const adjustedChance = state.botStrategy === 'patient' && state.deck.length > 8 ? bluffChance * .5 : bluffChance;
+      if (Math.random() > adjustedChance) return true;
+    }
     if (state.botStrategy !== 'patient' || state.deck.length < 18) return false;
     const size = plan.visible.length + plan.hidden.length;
     if (size >= 6 || (size >= 5 && plan.bluffs === 0)) return false;
