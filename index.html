@@ -55,12 +55,13 @@
     .clock { min-width: 54px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; color: var(--ink); background: rgba(0,0,0,.2); font: 700 16px/1 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: center; }
     .clock.active { border-color: var(--gold); color: var(--gold-bright); box-shadow: 0 0 10px rgba(228,185,108,.18); }
     .clock.low { color: var(--coral); }
-    .bot-report { display: -webkit-box; height: 25px; min-height: 25px; margin: -2px 0 4px 38px; overflow: hidden; color: var(--gold-bright); font-size: 10px; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .bot-report { display: -webkit-box; height: 34px; min-height: 34px; margin: -2px 0 4px 38px; overflow: hidden; color: var(--gold-bright); font-size: 13px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
     .player-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 10px; color: #173128; background: var(--gold); font-size: 14px; }
     .human .avatar { background: var(--coral); color: #3b201c; }
     .score { color: var(--muted); font-size: 12px; }
     .sets { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 5px; min-height: 48px; max-height: calc(100% - 31px); overflow: hidden; }
+    .player-zone.bot .sets { max-height: calc(100% - 68px); }
     .empty { width: 100%; padding: 14px 8px; border: 1px dashed rgba(255,255,255,.13); border-radius: 12px; color: rgba(255,255,255,.42); text-align: center; font-size: 11px; }
     .set { display: flex; gap: 2px; align-items: center; min-height: 55px; padding: 4px; border: 1px solid rgba(228,185,108,.28); border-radius: 10px; background: rgba(5, 19, 14, .28); transition: .2s; }
     .set.selectable { cursor: pointer; }
@@ -204,7 +205,7 @@
     for (let round = 0; round < 2; round++) for (let value = 2; value <= 9; value++) for (const suit of SUITS) deck.push(card(value, suit));
     shuffle(deck);
     const startingPlayer = Math.random() < .5 ? 0 : 1;
-    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, resolving: false, finalPlayer: null, over: false, seenCards: new Map(), botChallengeSet: null, botReport: startingPlayer === 1 ? 'BOT won the draw and starts.' : 'You won the draw and start.', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
+    state = { deck, discard: [], hands: [[], []], sets: [[], []], clocks: [600000, 600000], turn: startingPlayer, turnNumber: 1, phase: 'draw', actionTaken: false, resolving: false, finalPlayer: null, over: false, seenCards: new Map(), botChallengeSet: null, botReport: startingPlayer === 1 ? 'BOT starts' : 'You start', botLog: [], message: startingPlayer === 1 ? 'BOT is thinking…' : 'Draw two cards or take the top discard.' };
     for (let i = 0; i < 10; i++) { state.hands[0].push(deck.pop()); state.hands[1].push(deck.pop()); }
     state.hands[0].push(card('Joker', null, true)); state.hands[1].push(card('Joker', null, true));
     state.discard.push(deck.pop()); rememberCard(topDiscard());
@@ -233,10 +234,12 @@
   function faceUpCount(player) { return state.sets[player].flatMap(s => s.cards).filter(c => c.faceUp).length; }
   function cardMatches(c, value) { return c.joker || value === c.value; }
   function cardLabel(c) { return c.joker ? 'the joker' : `${c.value}${c.suit}`; }
+  function shortCardLabel(c) { return c.joker ? 'Joker' : `${c.value}${c.suit}`; }
   function rememberCard(c) { if (c) state.seenCards.set(c.id, c); }
   function setAI(set) { return set.ai ||= { createdTurn: state.turnNumber, matchingDiscardSeen: false, swappedSinceChallenge: false, matchedChallenges: 0 }; }
   function markSetPlaced(set) { const serial = gameSerial; set.placing = true; setTimeout(() => { if (serial === gameSerial) delete set.placing; }, 800); }
   function logBot(text) { state.botLog.push(text); }
+  function botReportText() { return state.botLog.join(' -> '); }
   function setValue(set) { const visible = set.cards.find(c => c.faceUp && !c.joker); return visible ? visible.value : null; }
   function canHumanSwap() { return state.sets[0].some(set => set.cards.some(card => !card.faceUp) && state.hands[0].some(card => cardMatches(card, setValue(set)))); }
   function cardHTML(c, interactive = false, extraClass = '') {
@@ -435,7 +438,7 @@
     state.hands[1] = state.hands[1].filter(c => !ids.has(c.id));
     const set = { cards: orderSetCards(chosen.map((c, index) => ({ ...c, faceUp: index < plan.visible.length }))) };
     set.cards.filter(c => c.faceUp).forEach(rememberCard); setAI(set); markSetPlaced(set); state.sets[1].push(set);
-    logBot(`BOT placed a set of ${plan.value}s with ${plan.visible.length} face-up and ${plan.hidden.length} face-down cards.`);
+    logBot(`Place set: ${plan.value}s (${plan.visible.length} up, ${plan.hidden.length} down)`);
     return true;
   }
   function findOwnSwap(kind) {
@@ -452,12 +455,12 @@
     rememberCard(move.target); state.hands[1].splice(move.handIndex, 1, move.target); delete move.target.faceUp;
     replacement.faceUp = true; rememberCard(replacement);
     move.set.cards[move.set.cards.indexOf(move.target)] = replacement; move.set.cards = orderSetCards(move.set.cards); animateCards([{ id: replacement.id, effect: 'swap-in' }]);
-    logBot(move.kind === 'correction' ? `BOT revealed ${cardLabel(move.target)}, returned it to its hand, and corrected the set of ${move.value}s.` : move.kind === 'joker' ? `BOT revealed and retrieved its joker from the set of ${move.value}s.` : `BOT revealed ${cardLabel(move.target)}, returned it to its hand, and made a deceptive swap in the set of ${move.value}s.`);
+    logBot(`Swap: ${shortCardLabel(move.target)} for a ${move.value}`);
   }
   function botSelfFlip() {
     for (let setIndex = 0; setIndex < state.sets[1].length; setIndex++) {
       const set = state.sets[1][setIndex], value = setValue(set), target = set.cards.find(c => !c.faceUp && cardMatches(c, value) && !c.joker);
-      if (target) { target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]); logBot(`BOT safely flipped ${cardLabel(target)} in its own set of ${value}s.`); state.botReport = state.botLog.join(' '); animateMatchedFlip(set, target, scheduleBotEnd); return true; }
+      if (target) { target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]); logBot(`Flip: ${shortCardLabel(target)} in own ${value}s`); state.botReport = botReportText(); animateMatchedFlip(set, target, scheduleBotEnd); return true; }
     }
     return false;
   }
@@ -467,14 +470,14 @@
     target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]);
     if (!cardMatches(target, choice.value)) {
       state.botChallengeSet = null;
-      logBot(`BOT ${choice.continuing ? 'continued challenging' : 'challenged'} your set of ${choice.value}s and flipped ${cardLabel(target)}. It was a mismatch, so the set was shuffled beneath the discard pile.`);
-      state.botReport = state.botLog.join(' '); revealDestroyedSet(0, set, choice.value, target, scheduleBotEnd); return 'pending';
+      logBot(`Flip: ${shortCardLabel(target)} in your ${choice.value}s - destroy set`);
+      state.botReport = botReportText(); revealDestroyedSet(0, set, choice.value, target, scheduleBotEnd); return 'pending';
     } else {
       const ai = setAI(set); ai.matchedChallenges++; ai.swappedSinceChallenge = false;
       const remaining = set.cards.filter(c => !c.faceUp).length;
       state.botChallengeSet = remaining ? set : null;
-      logBot(`BOT ${choice.continuing ? 'continued challenging' : 'challenged'} your set of ${choice.value}s and flipped ${cardLabel(target)}. It matched.${remaining ? ` BOT will continue with this set (${remaining} hidden ${remaining === 1 ? 'card' : 'cards'} remain).` : ' The complete set is now face-up.'}`);
-      state.botReport = state.botLog.join(' '); animateMatchedFlip(set, target, scheduleBotEnd); return 'pending';
+      logBot(`Flip: ${shortCardLabel(target)} in your ${choice.value}s - match${remaining ? ` (${remaining} hidden left)` : ''}`);
+      state.botReport = botReportText(); animateMatchedFlip(set, target, scheduleBotEnd); return 'pending';
     }
   }
   function botShouldTakeDiscard() {
@@ -501,14 +504,14 @@
   }
   function botTurn() {
     if (state.over) return; state.botLog = []; let discardMove = null, drawMove = null;
-    if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`BOT took ${cardLabel(taken)} from the discard pile.`); discardMove = { card: taken, sourceRect }; }
-    else { const sourceRect = $('drawPileCard').getBoundingClientRect(), amount = Math.min(2, state.deck.length), cards = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[1].push(card); cards.push(card); } drawMove = { cards, sourceRect }; logBot(`BOT drew ${amount === 1 ? 'the final card' : `${amount} cards`}.`); if (!state.deck.length) state.finalPlayer = 1; }
-    state.phase = 'action'; state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing an action…'; render();
+    if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`Take ${shortCardLabel(taken)}`); discardMove = { card: taken, sourceRect }; }
+    else { const sourceRect = $('drawPileCard').getBoundingClientRect(), amount = Math.min(2, state.deck.length), cards = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[1].push(card); cards.push(card); } drawMove = { cards, sourceRect }; logBot(`Draw ${amount}`); if (!state.deck.length) state.finalPlayer = 1; }
+    state.phase = 'action'; state.botReport = botReportText(); state.message = 'BOT is choosing an action…'; render();
     if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botName'), discardMove.sourceRect.width, discardMove.sourceRect.height));
     if (drawMove?.sourceRect) drawMove.cards.forEach((card, index) => { const startRect = { left: drawMove.sourceRect.left + index * 3, top: drawMove.sourceRect.top + index * 2, width: drawMove.sourceRect.width, height: drawMove.sourceRect.height }; setTimeout(() => flyCard(card, startRect, cardSizedRectAt($('botName'), drawMove.sourceRect.width, drawMove.sourceRect.height), null, null, false), index * 170); });
     const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 3000);
   }
-  function scheduleBotEnd() { state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 3000); }
+  function scheduleBotEnd() { state.botReport = botReportText(); state.message = 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 3000); }
   function botAction() {
     const finalTurn = state.finalPlayer === 1, leading = faceUpCount(1) >= faceUpCount(0);
     if (state.botChallengeSet) {
@@ -527,7 +530,7 @@
     if (botSelfFlip()) return;
     const jokerRetrieval = findOwnSwap('joker'); if (jokerRetrieval) { performBotSwap(jokerRetrieval); return scheduleBotEnd(); }
     const trickSwap = Math.random() < .16 ? findOwnSwap('trick') : null; if (trickSwap) { performBotSwap(trickSwap); return scheduleBotEnd(); }
-    logBot('BOT passed rather than risk an uncertain challenge.'); scheduleBotEnd();
+    logBot('Pass'); scheduleBotEnd();
   }
   function botDiscardIndex() {
     let bestIndex = 0, bestScore = -Infinity;
@@ -545,9 +548,9 @@
     const serial = gameSerial, index = botDiscardIndex(), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
     const sourceRect = cardSizedRectAt($('botName'), targetRect.width, targetRect.height);
     state.message = 'BOT is discarding…'; render();
-    flyCard(discarded, sourceRect, targetRect, null, () => { if (serial !== gameSerial || state.over || state.turn !== 1) return; state.hands[1].splice(index, 1); state.discard.push(discarded); rememberCard(discarded); logBot(`BOT discarded ${cardLabel(discarded)}.`); finishBotTurn(); });
+    flyCard(discarded, sourceRect, targetRect, null, () => { if (serial !== gameSerial || state.over || state.turn !== 1) return; state.hands[1].splice(index, 1); state.discard.push(discarded); rememberCard(discarded); logBot(`Discard ${shortCardLabel(discarded)}`); finishBotTurn(); });
   }
-  function finishBotTurn() { state.botReport = state.botLog.join(' '); if (state.finalPlayer === 1) return finishGame(); state.turnNumber++; if (!switchTurn(0)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'Your turn: draw two cards or take the discard.'; render(); }
+  function finishBotTurn() { state.botReport = botReportText(); if (state.finalPlayer === 1) return finishGame(); state.turnNumber++; if (!switchTurn(0)) return; state.phase = 'draw'; state.actionTaken = false; state.message = 'Your turn: draw two cards or take the discard.'; render(); }
   function winner() { const scores = [faceUpCount(0), faceUpCount(1)]; if (scores[0] !== scores[1]) return scores[0] > scores[1] ? 0 : 1; if (state.hands[0].length !== state.hands[1].length) return state.hands[0].length > state.hands[1].length ? 0 : 1; return -1; }
   function finishGame() { tickClock(); if (state.over) return; state.over = true; state.phase = 'over'; clearInterval(clockTimer); const scores = [faceUpCount(0), faceUpCount(1)], wonBy = winner(); state.message = wonBy < 0 ? `It’s a draw at ${scores[0]} points.` : wonBy === 0 ? `You win ${scores[0]}–${scores[1]}!` : `BOT wins ${scores[1]}–${scores[0]}.`; render(); setTimeout(() => showResult(scores, wonBy), 300); }
   function showResult(scores, wonBy) { modalLocked = false; const title = wonBy < 0 ? 'A perfectly close game.' : wonBy === 0 ? 'You win!' : 'BOT wins!'; $('modal').innerHTML = `<h2>${title}</h2><p>${scores[0] === scores[1] && wonBy >= 0 ? `Points were tied; cards in hand decided the winner.` : wonBy < 0 ? 'Both points and cards in hand are tied.' : 'Every hidden card was a calculated risk.'}</p><div class="result-score"><div><strong>${scores[0]}</strong><span>Your points</span></div><div><strong>${scores[1]}</strong><span>BOT points</span></div></div><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = () => { closeModal(); freshGame(); }; }
