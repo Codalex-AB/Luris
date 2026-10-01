@@ -449,20 +449,31 @@
     const best = choices[0];
     return { setIndex: best.setIndex, hiddenIndex: Math.floor(Math.random() * best.hiddenCount), value: setValue(best.set), risk: best.risk };
   }
+  function botOutlook() {
+    const botPoints = faceUpCount(1), humanPoints = faceUpCount(0);
+    const futureTurns = Math.floor((state.deck.length + 1) / 4);
+    const pointsNeeded = Math.max(0, humanPoints - botPoints + 1);
+    return { futureTurns, turnsLeft: futureTurns + 1, pointsNeeded, pointsNowNeeded: Math.max(0, pointsNeeded - futureTurns) };
+  }
   function buildBotSetPlan(highValueOnly = false) {
     const hand = state.hands[1], groups = {};
     hand.forEach(c => { if (!c.joker) (groups[c.value] ||= []).push(c); });
     const frequencies = Object.fromEntries(Object.entries(groups).map(([value, cards]) => [value, cards.length]));
-    const plans = [], doubleBluffAllowed = state.deck.length < 5 && faceUpCount(1) < faceUpCount(0);
+    const plans = [], outlook = botOutlook(), doubleBluffAllowed = state.deck.length < 5 && faceUpCount(1) < faceUpCount(0);
     Object.values(groups).filter(group => group.length >= 2).forEach(group => {
       if (state.botStrategy === 'patient' && group.length >= 4 && hand.length >= 6) {
-        const visible = group.slice(0, 3), remaining = hand.filter(c => !visible.includes(c));
+        const maxVisible = Math.min(group.length, hand.length - 2);
+        const visibleCount = Math.min(maxVisible, Math.max(3, outlook.pointsNowNeeded));
+        const visible = group.slice(0, visibleCount), remaining = hand.filter(c => !visible.includes(c));
         const correct = remaining.filter(c => cardMatches(c, group[0].value));
         const incorrect = remaining.filter(c => !cardMatches(c, group[0].value)).sort((a, b) => (frequencies[a.value] || 0) - (frequencies[b.value] || 0));
-        const hidden = [...correct, ...incorrect.slice(0, 1)];
+        const pointsStillNeeded = Math.max(0, outlook.pointsNeeded - visibleCount);
+        const canAffordCorrection = outlook.futureTurns > pointsStillNeeded;
+        const hidden = [...correct];
+        if (incorrect.length && (hidden.length < 2 || canAffordCorrection)) hidden.push(incorrect[0]);
         if (hidden.length >= 2) {
           const bluffs = hidden.filter(c => !cardMatches(c, group[0].value)).length;
-          plans.push({ value: group[0].value, visible, hidden, bluffs, score: 100 + visible.length * 12 + (hidden.length - bluffs) * 8 - bluffs * 6 + hidden.length + Math.random() });
+          plans.push({ value: group[0].value, visible, hidden, bluffs, score: 100 + visible.length * 12 + (hidden.length - bluffs) * 8 - bluffs * 6 + hidden.length + outlook.pointsNowNeeded * visible.length + Math.random() });
         }
       }
       const maxVisible = Math.min(group.length, hand.length - 2, 4);
@@ -495,6 +506,8 @@
   }
   function setNeedsCorrection(set) { const value = setValue(set); return set.cards.some(c => !c.faceUp && !cardMatches(c, value)); }
   function botShouldDelaySet(plan) {
+    const outlook = botOutlook();
+    if (outlook.pointsNowNeeded && plan.visible.length >= outlook.pointsNowNeeded) return false;
     if (plan.bluffs) {
       const bluffChance = state.deck.length > 30 ? .06 : state.deck.length > 18 ? .28 : state.deck.length > 8 ? .72 : 1;
       const adjustedChance = state.botStrategy === 'patient' && state.deck.length > 8 ? bluffChance * .5 : bluffChance;
