@@ -181,9 +181,9 @@
   <main>
     <section class="game-head"><div></div><div class="turn-pill"><span class="turn-dot"></span><span id="turnLabel">Your turn</span></div></section>
     <section class="table" aria-label="Luris game table">
-      <div class="player-zone bot"><div class="zone-head"><div class="player-label"><span class="avatar">◈</span> BOT <span class="score" id="botScore">0 points</span></div><div class="zone-meta"><span class="clock" id="botClock">10:00</span><span class="score" id="botHandCount">11 in hand</span></div></div><div class="bot-report" id="botReport">BOT has not played yet.</div><div class="sets" id="botSets"></div></div>
+      <div class="player-zone bot"><div class="zone-head"><div class="player-label"><span class="avatar">◈</span> <span id="botName">BOT</span> <span class="score" id="botScore">0 points</span><span class="score" id="botHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="botClock">10:00</span></div></div><div class="bot-report" id="botReport">BOT has not played yet.</div><div class="sets" id="botSets"></div></div>
       <div class="middle"><div class="pile"><div class="back" id="drawPileCard">✦</div><div><div class="pile-label">Draw pile</div><div class="pile-count" id="drawCount">0</div></div></div><div class="pile right"><div class="discard" id="discardCard"></div><div><div class="pile-label">Discard</div><div class="pile-count" id="discardCount">0</div></div></div></div>
-      <div class="player-zone human"><div class="zone-head"><div class="player-label"><span class="avatar">✦</span> You <span class="score" id="humanScore">0 points</span></div><div class="zone-meta"><span class="clock" id="humanClock">10:00</span><span class="score" id="humanHandCount">11 in hand</span></div></div><div class="sets" id="humanSets"></div></div>
+      <div class="player-zone human"><div class="zone-head"><div class="player-label"><span class="avatar">✦</span> <span id="humanName">You</span> <span class="score" id="humanScore">0 points</span><span class="score" id="humanHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="humanClock">10:00</span></div></div><div class="sets" id="humanSets"></div></div>
       <div class="hand-wrap"><div class="hand" id="hand"></div><div class="hand-note" id="handNote">Tap cards to select them.</div></div>
       <div class="controls" id="controls"></div>
       <div class="status" id="status" aria-live="polite"></div>
@@ -224,8 +224,10 @@
     const ghost = document.createElement('div'); ghost.className = 'flying-card'; ghost.innerHTML = cardHTML({...card, faceUp});
     Object.assign(ghost.style, { left: `${fromRect.left}px`, top: `${fromRect.top}px`, width: `${fromRect.width}px`, height: `${fromRect.height}px` });
     document.body.appendChild(ghost); if (hiddenElement) hiddenElement.style.opacity = '0';
-    requestAnimationFrame(() => { ghost.style.transform = `translate(${toRect.left - fromRect.left}px, ${toRect.top - fromRect.top}px) scale(${toRect.width / fromRect.width}, ${toRect.height / fromRect.height})`; ghost.style.opacity = '.92'; });
-    setTimeout(() => { ghost.remove(); if (hiddenElement?.isConnected) hiddenElement.style.opacity = ''; if (done) done(); }, 700);
+    const destination = `translate(${toRect.left - fromRect.left}px, ${toRect.top - fromRect.top}px) scale(${toRect.width / fromRect.width}, ${toRect.height / fromRect.height})`;
+    let finished = false; const finish = () => { if (finished) return; finished = true; ghost.remove(); if (hiddenElement?.isConnected) hiddenElement.style.opacity = ''; if (done) done(); };
+    if (ghost.animate) { const duration = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 950, animation = ghost.animate([{ transform: 'translate(0, 0) scale(1)', opacity: 1 }, { transform: destination, opacity: .96 }], { duration, easing: 'cubic-bezier(.2,.75,.2,1)', fill: 'forwards' }); animation.finished.then(finish, finish); }
+    else { requestAnimationFrame(() => { ghost.style.transform = destination; ghost.style.opacity = '.96'; }); setTimeout(finish, 950); }
   }
   function cardSizedRectAt(element, width, height) { const rect = element?.getBoundingClientRect(); return rect ? { left: rect.left + (rect.width - width) / 2, top: rect.top + (rect.height - height) / 2, width, height } : null; }
   function sortHand(hand) { hand.sort((a, b) => (a.joker ? 99 : a.value) - (b.joker ? 99 : b.value) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)); }
@@ -290,8 +292,8 @@
       addButton(c, 'Cancel action', cancelAction, '', false);
     } else {
       addButton(c, 'Place set', openSetModal, 'primary', selected.size < 4 || state.finalPlayer === 0);
-      addButton(c, 'Flip a card', beginFlip, '', !state.sets.flat().some(set => set.cards.some(card => !card.faceUp)));
-      addButton(c, 'Swap a card', beginSwap, '', !canHumanSwap());
+      addButton(c, 'Flip', beginFlip, '', !state.sets.flat().some(set => set.cards.some(card => !card.faceUp)));
+      addButton(c, 'Swap', beginSwap, '', !canHumanSwap());
       addButton(c, selected.size === 1 ? 'Pass & discard' : 'Pass', passAction, '', false);
     }
   }
@@ -302,13 +304,13 @@
     for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[0].push(card); drawn.push(card); }
     state.phase = 'action'; state.actionTaken = false; state.resolving = true; if (!state.deck.length) state.finalPlayer = 0; state.message = 'Drawing cards…'; render();
     let remaining = drawn.length;
-    drawn.forEach((card, index) => { const target = document.querySelector(`#hand [data-card="${card.id}"]`), targetRect = target?.getBoundingClientRect(), startRect = { left: sourceRect.left + index * 3, top: sourceRect.top + index * 2, width: sourceRect.width, height: sourceRect.height }; if (target) target.style.opacity = '0'; setTimeout(() => flyCard(card, startRect, targetRect, target, () => { if (--remaining || serial !== gameSerial || state.over) return; state.resolving = false; state.message = state.finalPlayer === 0 ? 'Final turn: choose flip, swap, or pass.' : 'Choose one action.'; render(); }), index * 170); });
+    drawn.forEach((card, index) => { const target = document.querySelector(`#hand [data-card="${card.id}"]`), targetRect = cardSizedRectAt($('humanName'), sourceRect.width, sourceRect.height), startRect = { left: sourceRect.left + index * 3, top: sourceRect.top + index * 2, width: sourceRect.width, height: sourceRect.height }; if (target) target.style.opacity = '0'; setTimeout(() => flyCard(card, startRect, targetRect, target, () => { if (--remaining || serial !== gameSerial || state.over) return; state.resolving = false; state.message = state.finalPlayer === 0 ? 'Final turn: choose flip, swap, or pass.' : 'Choose one action.'; render(); }, false), index * 170); });
   }
   function takeDiscard() {
     if (!isHumanTurn() || state.phase !== 'draw' || !topDiscard()) return;
     const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(), serial = gameSerial;
     state.hands[0].push(taken); state.phase = 'action'; state.actionTaken = false; state.resolving = true; state.message = 'Taking the discard…'; render();
-    const target = document.querySelector(`#hand [data-card="${taken.id}"]`), targetRect = target?.getBoundingClientRect();
+    const target = document.querySelector(`#hand [data-card="${taken.id}"]`), targetRect = cardSizedRectAt($('humanName'), sourceRect.width, sourceRect.height);
     flyCard(taken, sourceRect, targetRect, target, () => { if (serial !== gameSerial || state.over) return; state.resolving = false; state.message = 'Choose one action.'; render(); });
   }
   function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = message; render(); }
@@ -486,8 +488,8 @@
     if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`BOT took ${cardLabel(taken)} from the discard pile.`); discardMove = { card: taken, sourceRect }; }
     else { const sourceRect = $('drawPileCard').getBoundingClientRect(), amount = Math.min(2, state.deck.length), cards = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[1].push(card); cards.push(card); } drawMove = { cards, sourceRect }; logBot(`BOT drew ${amount === 1 ? 'the final card' : `${amount} cards`}.`); if (!state.deck.length) state.finalPlayer = 1; }
     state.phase = 'action'; state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing an action…'; render();
-    if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botHandCount'), discardMove.sourceRect.width, discardMove.sourceRect.height));
-    if (drawMove?.sourceRect) drawMove.cards.forEach((card, index) => { const startRect = { left: drawMove.sourceRect.left + index * 3, top: drawMove.sourceRect.top + index * 2, width: drawMove.sourceRect.width, height: drawMove.sourceRect.height }; setTimeout(() => flyCard(card, startRect, cardSizedRectAt($('botHandCount'), drawMove.sourceRect.width, drawMove.sourceRect.height), null, null, false), index * 170); });
+    if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botName'), discardMove.sourceRect.width, discardMove.sourceRect.height));
+    if (drawMove?.sourceRect) drawMove.cards.forEach((card, index) => { const startRect = { left: drawMove.sourceRect.left + index * 3, top: drawMove.sourceRect.top + index * 2, width: drawMove.sourceRect.width, height: drawMove.sourceRect.height }; setTimeout(() => flyCard(card, startRect, cardSizedRectAt($('botName'), drawMove.sourceRect.width, drawMove.sourceRect.height), null, null, false), index * 170); });
     const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 3000);
   }
   function scheduleBotEnd() { state.botReport = state.botLog.join(' '); state.message = 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 3000); }
@@ -525,7 +527,7 @@
   function botEnd() {
     if (!state.hands[1].length) return finishBotTurn();
     const serial = gameSerial, index = botDiscardIndex(), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
-    const sourceRect = cardSizedRectAt($('botHandCount'), targetRect.width, targetRect.height);
+    const sourceRect = cardSizedRectAt($('botName'), targetRect.width, targetRect.height);
     state.message = 'BOT is discarding…'; render();
     flyCard(discarded, sourceRect, targetRect, null, () => { if (serial !== gameSerial || state.over || state.turn !== 1) return; state.hands[1].splice(index, 1); state.discard.push(discarded); rememberCard(discarded); logBot(`BOT discarded ${cardLabel(discarded)}.`); finishBotTurn(); });
   }
