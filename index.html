@@ -60,6 +60,7 @@
     .avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 10px; color: #173128; background: var(--gold); font-size: 14px; }
     .human .avatar { background: var(--coral); color: #3b201c; }
     .score { color: var(--muted); font-size: 12px; }
+    .lead-score { color: var(--gold-bright); font-size: 12px; font-weight: 800; }
     .sets { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 5px; min-height: 48px; max-height: calc(100% - 31px); overflow: hidden; }
     .player-zone.bot .sets { max-height: calc(100% - 68px); }
     .empty { width: 100%; padding: 14px 8px; border: 1px dashed rgba(255,255,255,.13); border-radius: 12px; color: rgba(255,255,255,.42); text-align: center; font-size: 11px; }
@@ -179,9 +180,9 @@
   <main>
     <section class="game-head"><div></div><div class="turn-pill"><span class="turn-dot"></span><span id="turnLabel">Your turn</span></div></section>
     <section class="table" aria-label="Luris game table">
-      <div class="player-zone bot"><div class="zone-head"><div class="player-label"><span class="avatar">◈</span> <span id="botName">BOT</span> <span class="score" id="botScore">0 points</span><span class="score" id="botHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="botClock">10:00</span></div></div><div class="bot-report" id="botReport">BOT has not played yet.</div><div class="sets" id="botSets"></div></div>
+      <div class="player-zone bot"><div class="zone-head"><div class="player-label"><span class="avatar">◈</span> <span id="botName">BOT</span><span class="lead-score hidden" id="botLead"></span> <span class="score" id="botScore">0 points</span><span class="score" id="botHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="botClock">10:00</span></div></div><div class="bot-report" id="botReport">BOT has not played yet.</div><div class="sets" id="botSets"></div></div>
       <div class="middle"><div class="pile"><div class="back" id="drawPileCard">✦</div><div><div class="pile-label">Draw pile</div><div class="pile-count" id="drawCount">0</div></div></div><div class="pile right"><div class="discard" id="discardCard"></div><div><div class="pile-label">Discard</div><div class="pile-count" id="discardCount">0</div></div></div></div>
-      <div class="player-zone human"><div class="zone-head"><div class="player-label"><span class="avatar">✦</span> <span id="humanName">You</span> <span class="score" id="humanScore">0 points</span><span class="score" id="humanHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="humanClock">10:00</span></div></div><div class="sets" id="humanSets"></div></div>
+      <div class="player-zone human"><div class="zone-head"><div class="player-label"><span class="avatar">✦</span> <span id="humanName">You</span><span class="lead-score hidden" id="humanLead"></span> <span class="score" id="humanScore">0 points</span><span class="score" id="humanHandCount">11 in hand</span></div><div class="zone-meta"><span class="clock" id="humanClock">10:00</span></div></div><div class="sets" id="humanSets"></div></div>
       <div class="hand-wrap"><div class="hand" id="hand"></div><div class="hand-note" id="handNote">Tap cards to select them.</div></div>
       <div class="controls" id="controls"></div>
       <div class="status" id="status" aria-live="polite"></div>
@@ -255,8 +256,10 @@
     $('drawCount').textContent = state.deck.length;
     $('discardCount').textContent = state.discard.length;
     $('discardCard').innerHTML = topDiscard() ? cardHTML({...topDiscard(), faceUp: true}, isHumanTurn() && state.phase === 'draw', animationClass(topDiscard().id)) : '';
-    $('botScore').textContent = `${faceUpCount(1)} points`;
-    $('humanScore').textContent = `${faceUpCount(0)} points`;
+    const botPoints = faceUpCount(1), humanPoints = faceUpCount(0), pointLead = botPoints - humanPoints;
+    $('botScore').textContent = `${botPoints} points`; $('humanScore').textContent = `${humanPoints} points`;
+    $('botLead').textContent = pointLead > 0 ? `+${pointLead}` : ''; $('botLead').classList.toggle('hidden', pointLead <= 0);
+    $('humanLead').textContent = pointLead < 0 ? `+${-pointLead}` : ''; $('humanLead').classList.toggle('hidden', pointLead >= 0);
     $('botHandCount').textContent = `${state.hands[1].length} in hand`;
     $('botReport').textContent = state.botReport;
     $('humanHandCount').textContent = `${state.hands[0].length} in hand`;
@@ -349,7 +352,18 @@
     if (selectedBoard.mode === 'flip') resolveFlip(player, setIndex, c);
   }
   function resolveFlip(player, setIndex, c) { const set = state.sets[player][setIndex], value = setValue(set); c.faceUp = true; rememberCard(c); animateCards([{ id: c.id, effect: 'flip-in' }]); selectedBoard = null; if (!cardMatches(c, value)) revealDestroyedSet(player, set, value, c, () => completeAction(`The ${value} set was shuffled beneath the discard pile. Choose a discard.`)); else animateMatchedFlip(set, c, () => completeAction('A match! Choose a card to discard.')); }
-  function doSwap(id) { const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set?.cards.find(c => c.id === selectedBoard.cardId), value = set ? setValue(set) : null; if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.'); const at = state.hands[0].findIndex(c => c.id === id); rememberCard(hidden); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards); animateCards([{ id: handCard.id, effect: 'swap-in' }, { id: hidden.id, effect: 'swap-out' }]); const ai = setAI(set); ai.swappedSinceChallenge = true; ai.matchedChallenges = 0; completeAction(`Swap complete. ${cardLabel(hidden)} was revealed to BOT and returned to your hand. Choose a discard.`); }
+  function doSwap(id) {
+    const handCard = state.hands[0].find(c => c.id === id), set = state.sets[0][selectedBoard.setIndex], hidden = set?.cards.find(c => c.id === selectedBoard.cardId), value = set ? setValue(set) : null;
+    if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.');
+    const handSource = document.querySelector(`#hand [data-card="${handCard.id}"]`)?.getBoundingClientRect();
+    const tableSource = document.querySelector(`[data-card="${hidden.id}"]`)?.getBoundingClientRect();
+    const at = state.hands[0].findIndex(c => c.id === id); rememberCard(hidden); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards);
+    const ai = setAI(set); ai.swappedSinceChallenge = true; ai.matchedChallenges = 0; state.resolving = true; state.message = 'Swapping cards…'; render();
+    const handTarget = document.querySelector(`#hand [data-card="${hidden.id}"]`), tableTarget = document.querySelector(`[data-card="${handCard.id}"]`);
+    let remaining = 2; const done = () => { if (--remaining) return; state.resolving = false; completeAction(`Swap complete. ${cardLabel(hidden)} was revealed to BOT and returned to your hand. Choose a discard.`); };
+    flyCard(handCard, handSource, tableTarget?.getBoundingClientRect(), tableTarget, done);
+    flyCard(hidden, tableSource, handTarget?.getBoundingClientRect(), handTarget, done);
+  }
   function setArrangements(cards, limit = 2) {
     const arrangements = [], values = [...new Set(cards.filter(c => !c.joker).map(c => c.value))];
     for (const value of values) {
@@ -410,7 +424,7 @@
       set.cards = [...faceUp, card, ...faceDown]; render();
       const target = document.querySelector(`[data-card="${card.id}"]`), toRect = target?.getBoundingClientRect();
       flyCard(card, fromRect, toRect, target, () => { if (serial !== gameSerial || state.over) return; state.resolving = false; done(); });
-    }, 1000);
+    }, 1200);
   }
   function revealDestroyedSet(player, set, value, wrongCard, done) {
     const serial = gameSerial; state.resolving = true; state.message = `Mismatch! ${cardLabel(wrongCard)} destroys the ${value} set.`; render();
@@ -537,11 +551,18 @@
     return null;
   }
   function performBotSwap(move) {
-    const replacement = state.hands[1][move.handIndex];
+    const replacement = state.hands[1][move.handIndex], tableSource = document.querySelector(`[data-card="${move.target.id}"]`)?.getBoundingClientRect();
     rememberCard(move.target); state.hands[1].splice(move.handIndex, 1, move.target); delete move.target.faceUp;
     replacement.faceUp = true; rememberCard(replacement);
-    move.set.cards[move.set.cards.indexOf(move.target)] = replacement; move.set.cards = orderSetCards(move.set.cards); animateCards([{ id: replacement.id, effect: 'swap-in' }]);
+    move.set.cards[move.set.cards.indexOf(move.target)] = replacement; move.set.cards = orderSetCards(move.set.cards);
     logBot(`Swap: ${shortCardLabel(move.target)} for a ${move.value}`);
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-card="${replacement.id}"]`), targetRect = target?.getBoundingClientRect();
+      if (!targetRect || !tableSource) return;
+      const botRect = cardSizedRectAt($('botName'), targetRect.width, targetRect.height);
+      flyCard(replacement, botRect, targetRect, target);
+      flyCard(move.target, tableSource, botRect, null, null, false);
+    });
   }
   function botSelfFlip() {
     for (let setIndex = 0; setIndex < state.sets[1].length; setIndex++) {
