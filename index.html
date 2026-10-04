@@ -277,7 +277,7 @@
   function renderClocks() { [0, 1].forEach(player => { const el = $(player === 0 ? 'humanClock' : 'botClock'); el.textContent = formatClock(state.clocks[player]); el.classList.toggle('active', !state.over && state.turn === player); el.classList.toggle('low', state.clocks[player] <= 30000); }); }
   function tickClock() { if (!state || state.over) return; const now = performance.now(), player = state.turn; state.clocks[player] = Math.max(0, state.clocks[player] - (now - clockLast)); clockLast = now; renderClocks(); if (!state.clocks[player]) finishByClock(player); }
   function switchTurn(player) { tickClock(); if (state.over) return false; state.turn = player; clockLast = performance.now(); renderClocks(); return true; }
-  function scheduleBotTurn(serial = gameSerial) { setTimeout(() => { if (serial === gameSerial && state && !state.over && state.turn === 1) botTurn(); }, 3000); }
+  function scheduleBotTurn(serial = gameSerial) { setTimeout(() => { if (serial === gameSerial && state && !state.over && state.turn === 1) botTurn(); }, 2000); }
   function finishByClock(loser) { if (state.over) return; state.over = true; state.phase = 'over'; clearInterval(clockTimer); state.message = loser === 0 ? 'Your clock ran out. BOT wins.' : 'BOT’s clock ran out. You win.'; render(); modalLocked = false; $('modal').innerHTML = `<h2>${loser === 0 ? 'BOT wins on time.' : 'You win on time!'}</h2><p>${loser === 0 ? 'Your ten-minute clock reached zero.' : 'BOT’s ten-minute clock reached zero.'}</p><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = freshGame; }
   function renderControls() {
     const c = $('controls'); c.innerHTML = '';
@@ -313,8 +313,8 @@
     const target = document.querySelector(`#hand [data-card="${taken.id}"]`), targetRect = target?.getBoundingClientRect();
     flyCard(taken, sourceRect, targetRect, target, () => { if (serial !== gameSerial || state.over) return; state.resolving = false; state.message = 'Choose one action.'; render(); });
   }
-  function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = message; render(); }
-  function passAction() { if (selected.size === 1) { state.actionTaken = true; selectedBoard = null; state.message = 'You passed. Discarding the selected card…'; render(); endHumanTurn(); } else completeAction('You passed. Choose a card to discard.'); }
+  function completeAction(message) { state.actionTaken = true; selectedBoard = null; selected.clear(); state.message = state.finalPlayer === 0 ? 'Final action complete.' : message; render(); if (state.finalPlayer === 0) finishGame(); }
+  function passAction() { if (state.finalPlayer === 0) return completeAction('Final turn complete.'); if (selected.size === 1) { state.actionTaken = true; selectedBoard = null; state.message = 'You passed. Discarding the selected card…'; render(); endHumanTurn(); } else completeAction('You passed. Choose a card to discard.'); }
   function cancelAction() { selectedBoard = null; selected.clear(); state.message = 'Choose one action.'; render(); }
   function endHumanTurn() {
     if (!isHumanTurn() || state.phase !== 'action' || !state.actionTaken || state.resolving) return;
@@ -380,13 +380,20 @@
     const visible = new Set(groups[0].slice(0, 2).map(c => c.id));
     return new Set(cards.filter(c => !visible.has(c.id)).map(c => c.id));
   }
+  function automaticSetHidden(cards, arrangements) {
+    const qualifyingValues = [...new Set(cards.filter(c => !c.joker).map(c => c.value))]
+      .filter(value => cards.filter(c => !c.joker && c.value === value).length >= 2);
+    if (qualifyingValues.length === 1) return defaultSetHidden(cards, arrangements[0]);
+    return arrangements.length === 1 ? arrangements[0] : null;
+  }
   function openSetModal() {
     if (selected.size < 4) return showToast('Select at least 4 cards: 2 face-up and 2 hidden.');
     if (state.finalPlayer === 0) return showToast('You cannot place a set on the final turn.');
     pendingSet = [...selected].map(id => state.hands[0].find(c => c.id === id));
     const arrangements = setArrangements(pendingSet);
     if (!arrangements.length) { pendingSet = null; return showToast('Select at least two matching face-up cards and two cards to hide.'); }
-    if (arrangements.length === 1) return placePendingSet(arrangements[0]);
+    const automaticHidden = automaticSetHidden(pendingSet, arrangements);
+    if (automaticHidden) return placePendingSet(automaticHidden);
     modalLocked = false; const hidden = defaultSetHidden(pendingSet, arrangements[0]);
     $('modal').innerHTML = `<h2>Place your set</h2><p>Tap the cards you want to hide. Your set needs at least two matching face-up cards and two hidden cards.</p><div class="modal-cards">${pendingSet.map(c => `<div class="modal-card ${hidden.has(c.id) ? 'hidden-choice' : ''}" data-modal-card="${c.id}">${cardHTML(c)}</div>`).join('')}</div><div class="modal-footer"><button class="action" id="cancelSet">Cancel</button><button class="action primary" id="confirmSet">Place set</button></div>`;
     $('modalBackdrop').classList.remove('hidden'); $('cancelSet').onclick = closeModal; $('confirmSet').onclick = confirmSet; $('confirmSet')._hidden = hidden;
@@ -589,9 +596,9 @@
     state.phase = 'action'; state.botReport = botReportText(); state.message = 'BOT is choosing an action…'; render();
     if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botName'), discardMove.sourceRect.width, discardMove.sourceRect.height));
     if (drawMove?.sourceRect) drawMove.cards.forEach((card, index) => { const startRect = { left: drawMove.sourceRect.left + index * 3, top: drawMove.sourceRect.top + index * 2, width: drawMove.sourceRect.width, height: drawMove.sourceRect.height }; setTimeout(() => flyCard(card, startRect, cardSizedRectAt($('botName'), drawMove.sourceRect.width, drawMove.sourceRect.height), null, null, false), index * 170); });
-    const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 3000);
+    const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botAction(); }, 2000);
   }
-  function scheduleBotEnd() { state.botReport = botReportText(); state.message = 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial === gameSerial && !state.over && state.turn === 1) botEnd(); }, 3000); }
+  function scheduleBotEnd() { state.botReport = botReportText(); state.message = state.finalPlayer === 1 ? 'BOT completed the final action.' : 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial !== gameSerial || state.over || state.turn !== 1) return; if (state.finalPlayer === 1) finishGame(); else botEnd(); }, 2000); }
   function botAction() {
     const finalTurn = state.finalPlayer === 1, leading = faceUpCount(1) >= faceUpCount(0);
     if (state.botChallengeSet) {
@@ -625,6 +632,7 @@
     return bestIndex;
   }
   function botEnd() {
+    if (state.finalPlayer === 1) return finishGame();
     if (!state.hands[1].length) return finishBotTurn();
     const serial = gameSerial, index = botDiscardIndex(), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
     const sourceRect = cardSizedRectAt($('botName'), targetRect.width, targetRect.height);
@@ -636,10 +644,10 @@
   function finishGame() { tickClock(); if (state.over) return; state.over = true; state.phase = 'over'; clearInterval(clockTimer); const scores = [faceUpCount(0), faceUpCount(1)], wonBy = winner(); state.message = wonBy < 0 ? `It’s a draw at ${scores[0]} points.` : wonBy === 0 ? `You win ${scores[0]}–${scores[1]}!` : `BOT wins ${scores[1]}–${scores[0]}.`; render(); setTimeout(() => showResult(scores, wonBy), 300); }
   function showResult(scores, wonBy) { modalLocked = false; const title = wonBy < 0 ? 'A perfectly close game.' : wonBy === 0 ? 'You win!' : 'BOT wins!'; $('modal').innerHTML = `<h2>${title}</h2><p>${scores[0] === scores[1] && wonBy >= 0 ? `Points were tied; cards in hand decided the winner.` : wonBy < 0 ? 'Both points and cards in hand are tied.' : 'Every hidden card was a calculated risk.'}</p><div class="result-score"><div><strong>${scores[0]}</strong><span>Your points</span></div><div><strong>${scores[1]}</strong><span>BOT points</span></div></div><div class="modal-footer"><button class="action primary" id="again">Play again</button></div>`; $('modalBackdrop').classList.remove('hidden'); $('again').onclick = () => { closeModal(); freshGame(); }; }
   function showToast(text) { $('toast').textContent = text; $('toast').classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2800); }
-  function showRules() { modalLocked = false; $('modal').innerHTML = '<h2>How to play</h2><p>The deck uses ranks 2–9. You and BOT start with 10 cards and a joker. <strong>Goal:</strong> finish with more face-up cards—your points—than BOT.</p><p><strong>Each turn:</strong> Draw two cards or take the discard. Choose one action. Then discard one card to end your turn.</p><p><strong>Place set:</strong> Put down at least two matching cards face-up and at least two cards face-down. Hidden cards may match—or be bluffs.<br><strong>Flip:</strong> Reveal any hidden card. A match earns its owner a point. A mismatch destroys the whole set.<br><strong>Swap:</strong> Replace one hidden card in your set with a matching card from your hand.<br><strong>Pass:</strong> Take no action.</p><p>The joker matches every set. You may look at your own hidden cards whenever you like.</p><p>Drawing the last card starts your final turn, and you cannot place a new set. Most points wins; tied points are decided by cards left in hand.</p><p>You and BOT each have ten minutes. BOT cannot see your hidden cards—it plays only from its own cards and public information.</p><div class="modal-footer"><button class="action primary" id="closeRules">Got it</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('closeRules').onclick = closeModal; }
+  function showRules() { modalLocked = false; $('modal').innerHTML = '<h2>How to play</h2><p>The deck uses ranks 2–9. You and BOT start with 10 cards and a joker. <strong>Goal:</strong> finish with more face-up cards—your points—than BOT.</p><p><strong>Each turn:</strong> Draw two cards or take the discard. Choose one action. Then discard one card to end your turn.</p><p><strong>Place set:</strong> Put down at least two matching cards face-up and at least two cards face-down. Hidden cards may match—or be bluffs.<br><strong>Flip:</strong> Reveal any hidden card. A match earns its owner a point. A mismatch destroys the whole set.<br><strong>Swap:</strong> Replace one hidden card in your set with a matching card from your hand.<br><strong>Pass:</strong> Take no action.</p><p>The joker matches every set. You may look at your own hidden cards whenever you like.</p><p>Drawing the last card starts your final turn. You cannot place a new set and do not discard after the final action. Most points wins; tied points are decided by cards left in hand.</p><p>You and BOT each have ten minutes. BOT cannot see your hidden cards—it plays only from its own cards and public information.</p><div class="modal-footer"><button class="action primary" id="closeRules">Got it</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('closeRules').onclick = closeModal; }
   function showNewGameModal() { modalLocked = false; $('modal').innerHTML = '<h2>Start a new game?</h2><p>The current game will be replaced with a fresh game against BOT.</p><div class="modal-footer"><button class="action" id="cancelNewGame">Cancel</button><button class="action primary" id="confirmNewGame">Start new game</button></div>'; $('modalBackdrop').classList.remove('hidden'); $('cancelNewGame').onclick = closeModal; $('confirmNewGame').onclick = freshGame; }
   document.addEventListener('click', e => { const handCard = e.target.closest('[data-card]'); if (handCard && handCard.closest('#hand')) { onHandCard(handCard.dataset.card); return; } const setEl = e.target.closest('[data-set]'); if (setEl) { const [player, setIndex] = setEl.dataset.set.split(':').map(Number), boardCard = e.target.closest('[data-card]'); if (boardCard && selectedBoard) { onBoardCard(player, setIndex, boardCard.dataset.card); return; } if (boardCard && player === 1 && isHumanTurn() && state.phase === 'action' && !state.actionTaken && !state.resolving) { const card = state.sets[player][setIndex]?.cards.find(c => c.id === boardCard.dataset.card); if (card && !card.faceUp) { selected.clear(); selectedBoard = { mode: 'flip' }; resolveFlip(player, setIndex, card); return; } } if (isHumanTurn() && player === 0 && !selectedBoard) { showOwnSet(setIndex); return; } } const discard = e.target.closest('#discardCard [data-card]'); if (discard && isHumanTurn() && state.phase === 'draw') takeDiscard(); });
-  $('rulesBtn').onclick = showRules; $('newGameBtn').onclick = showNewGameModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
+  $('drawPileCard').onclick = drawCards; $('rulesBtn').onclick = showRules; $('newGameBtn').onclick = showNewGameModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
   freshGame();
 })();
 </script>
