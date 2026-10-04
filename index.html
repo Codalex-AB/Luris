@@ -357,10 +357,10 @@
     if (!handCard || !hidden || !cardMatches(handCard, value)) return showToast('That card does not match the set.');
     const handSource = document.querySelector(`#hand [data-card="${handCard.id}"]`)?.getBoundingClientRect();
     const tableSource = document.querySelector(`[data-card="${hidden.id}"]`)?.getBoundingClientRect();
-    const at = state.hands[0].findIndex(c => c.id === id); rememberCard(hidden); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards);
+    const at = state.hands[0].findIndex(c => c.id === id); state.seenCards.delete(hidden.id); state.hands[0].splice(at, 1, hidden); delete hidden.faceUp; handCard.faceUp = true; rememberCard(handCard); set.cards[set.cards.indexOf(hidden)] = handCard; set.cards = orderSetCards(set.cards);
     const ai = setAI(set); ai.swappedSinceChallenge = true; ai.matchedChallenges = 0; state.resolving = true; state.message = 'Swapping cards…'; render();
     const handTarget = document.querySelector(`#hand [data-card="${hidden.id}"]`), tableTarget = document.querySelector(`[data-card="${handCard.id}"]`);
-    let remaining = 2; const done = () => { if (--remaining) return; state.resolving = false; completeAction(`Swap complete. ${cardLabel(hidden)} was revealed to BOT and returned to your hand. Choose a discard.`); };
+    let remaining = 2; const done = () => { if (--remaining) return; state.resolving = false; completeAction('Swap complete. The hidden card returned privately to your hand. Choose a discard.'); };
     flyCard(handCard, handSource, tableTarget?.getBoundingClientRect(), tableTarget, done);
     flyCard(hidden, tableSource, handTarget?.getBoundingClientRect(), handTarget, done);
   }
@@ -449,20 +449,23 @@
   }
   function closeModal() { if (modalLocked) return; $('modalBackdrop').classList.add('hidden'); pendingSet = null; }
   function knownValueCount(value) {
-    const ids = new Set();
+    const ids = new Set(), humanPrivate = new Set(state.hands[0].map(c => c.id));
+    state.sets[0].forEach(set => set.cards.forEach(c => { if (!c.faceUp) humanPrivate.add(c.id); }));
     state.hands[1].forEach(c => { if (!c.joker && c.value === value) ids.add(c.id); });
-    state.seenCards.forEach(c => { if (!c.joker && c.value === value) ids.add(c.id); });
+    state.seenCards.forEach(c => { if (!humanPrivate.has(c.id) && !c.joker && c.value === value) ids.add(c.id); });
     state.sets.flat().forEach(set => set.cards.forEach(c => { if (c.faceUp && !c.joker && c.value === value) ids.add(c.id); }));
     return ids.size;
   }
   function opponentSetRisk(set) {
     const hiddenCount = set.cards.filter(c => !c.faceUp).length, value = setValue(set), ai = setAI(set);
-    let risk = .1 + hiddenCount * .12 + Math.min(knownValueCount(value), 8) / 8 * .3;
-    if (state.deck.length < 18) risk += .12;
-    if (ai.matchingDiscardSeen) risk -= .28;
-    if (ai.swappedSinceChallenge) risk -= .16;
-    if (ai.matchedChallenges) risk += Math.min(.24, ai.matchedChallenges * .14);
-    return Math.max(.08, Math.min(.9, risk));
+    const known = Math.min(8, knownValueCount(value)), matchingCardsLeft = Math.max(0, 8 - known);
+    if (hiddenCount > matchingCardsLeft) return ai.swappedSinceChallenge ? .4 : .99;
+    let risk = .12 + known / 8 * .55 + Math.max(0, hiddenCount - 2) * .07;
+    if (state.deck.length < 18) risk += .08;
+    if (ai.matchingDiscardSeen) risk *= .65;
+    if (ai.matchedChallenges) risk += Math.min(.18, ai.matchedChallenges * .07);
+    if (ai.swappedSinceChallenge) risk *= .4;
+    return Math.max(.04, Math.min(.99, risk));
   }
   function chooseOpponentChallenge(threshold) {
     const choices = state.sets[0].map((set, setIndex) => ({ setIndex, set, risk: opponentSetRisk(set), hiddenCount: set.cards.filter(c => !c.faceUp).length })).filter(x => x.hiddenCount && x.risk >= threshold).sort((a, b) => b.risk - a.risk || b.hiddenCount - a.hiddenCount);
@@ -476,7 +479,7 @@
     const pointsNeeded = Math.max(0, humanPoints - botPoints + 1);
     return { futureTurns, turnsLeft: futureTurns + 1, pointsNeeded, pointsNowNeeded: Math.max(0, pointsNeeded - futureTurns) };
   }
-  function buildBotSetPlan(highValueOnly = false) {
+  function buildBotSetPlan(highValueOnly = false, safeOnly = false) {
     const hand = state.hands[1], groups = {};
     hand.forEach(c => { if (!c.joker) (groups[c.value] ||= []).push(c); });
     const frequencies = Object.fromEntries(Object.entries(groups).map(([value, cards]) => [value, cards.length]));
@@ -505,7 +508,7 @@
         const correct = remaining.filter(c => cardMatches(c, group[0].value)).sort((a, b) => Number(b.joker) - Number(a.joker));
         const incorrect = remaining.filter(c => !cardMatches(c, group[0].value)).sort((a, b) => (frequencies[a.value] || 0) - (frequencies[b.value] || 0));
         let hidden = [];
-        if (correct.length >= 2 && (Math.random() < .58 || !incorrect.length)) hidden = correct.slice(0, 2);
+        if (correct.length >= 2 && (safeOnly || Math.random() < .58 || !incorrect.length)) hidden = correct.slice(0, 2);
         else if (correct.length && incorrect.length) hidden = [correct[0], incorrect[0]];
         else if (correct.length >= 2) hidden = correct.slice(0, 2);
         else if (doubleBluffAllowed && incorrect.length >= 2) hidden = incorrect.slice(0, 2);
@@ -514,7 +517,7 @@
         plans.push({ value: group[0].value, visible, hidden, bluffs, score: visibleCount * 12 + (2 - bluffs) * 8 - bluffs * 6 + Math.random() });
       });
     });
-    return plans.sort((a, b) => b.score - a.score)[0] || null;
+    return plans.filter(plan => !safeOnly || !plan.bluffs).sort((a, b) => b.score - a.score)[0] || null;
   }
   function botPlaceSet(plan) {
     if (!plan) return false;
@@ -564,10 +567,10 @@
       flyCard(move.target, tableSource, botRect, null, null, false);
     });
   }
-  function botSelfFlip() {
+  function botSelfFlip(includeJoker = false) {
     for (let setIndex = 0; setIndex < state.sets[1].length; setIndex++) {
       const set = state.sets[1][setIndex]; if (setNeedsCorrection(set)) continue;
-      const value = setValue(set), target = set.cards.find(c => !c.faceUp && cardMatches(c, value) && !c.joker);
+      const value = setValue(set), target = set.cards.find(c => !c.faceUp && cardMatches(c, value) && !c.joker) || (includeJoker ? set.cards.find(c => !c.faceUp && c.joker) : null);
       if (target) { target.faceUp = true; rememberCard(target); animateCards([{ id: target.id, effect: 'flip-in' }]); logBot(`Flip: ${shortCardLabel(target)} in own ${value}s`); state.botReport = botReportText(); animateMatchedFlip(set, target, scheduleBotEnd); return true; }
     }
     return false;
@@ -581,38 +584,51 @@
       logBot(`Flip: ${shortCardLabel(target)} in your ${choice.value}s - destroy set`);
       state.botReport = botReportText(); revealDestroyedSet(0, set, choice.value, target, scheduleBotEnd); return 'pending';
     } else {
-      const ai = setAI(set); ai.matchedChallenges++; ai.swappedSinceChallenge = false;
+      const ai = setAI(set); ai.matchedChallenges++;
       const remaining = set.cards.filter(c => !c.faceUp).length;
       state.botChallengeSet = remaining ? set : null;
       logBot(`Flip: ${shortCardLabel(target)} in your ${choice.value}s - match${remaining ? ` (${remaining} hidden left)` : ''}`);
       state.botReport = botReportText(); animateMatchedFlip(set, target, scheduleBotEnd); return 'pending';
     }
   }
+  function continueBotChallenge(threshold) {
+    const set = state.botChallengeSet, setIndex = state.sets[0].indexOf(set), hiddenCount = set?.cards.filter(c => !c.faceUp).length || 0;
+    if (setIndex < 0 || !hiddenCount || opponentSetRisk(set) < threshold) { state.botChallengeSet = null; return false; }
+    const result = resolveBotChallenge({ setIndex, hiddenIndex: Math.floor(Math.random() * hiddenCount), value: setValue(set), continuing: true });
+    return result === 'pending';
+  }
+  function startBotChallenge(threshold) {
+    const choice = chooseOpponentChallenge(threshold); if (!choice) return false;
+    state.botChallengeSet = state.sets[0][choice.setIndex];
+    return resolveBotChallenge(choice) === 'pending';
+  }
+  function botPass() { logBot('Pass'); scheduleBotEnd(); }
   function botShouldTakeDiscard() {
     const top = topDiscard(); if (!top) return false;
-    if (state.deck.length <= 2 && !botCanWinFinalTurn()) return true;
+    if (state.deck.length <= 2) return !botCanWinFinalTurn();
     const correction = state.sets[1].some(set => set.cards.some(c => !c.faceUp && !cardMatches(c, setValue(set))) && cardMatches(top, setValue(set)));
     if (correction) return true;
     const sameInHand = state.hands[1].filter(c => !c.joker && !top.joker && c.value === top.value).length;
-    const canDelayUsefulSet = state.deck.length <= 2 && buildBotSetPlan(false);
-    const leading = faceUpCount(1) >= faceUpCount(0);
-    if (state.deck.length <= 2 && leading && state.hands[0].length >= 4) return false;
-    return Boolean(canDelayUsefulSet || sameInHand >= 2 || (sameInHand === 1 && Math.random() < .35));
+    const useful = Boolean(sameInHand >= 2 || (sameInHand === 1 && Math.random() < .35));
+    if (!useful) return false;
+    if (state.deck.length > 24) {
+      const projectedHand = [...state.hands[1], top], discardIndex = botDiscardIndex(projectedHand);
+      if (projectedHand[discardIndex]?.id === top.id) return false;
+    }
+    return true;
   }
   function botCanWinFinalTurn() {
     const botScore = faceUpCount(1), humanScore = faceUpCount(0);
-    let bestBotScore = botScore;
-    if (findOwnSwap('correction') || state.sets[1].some(set => set.cards.some(c => !c.faceUp && cardMatches(c, setValue(set))))) bestBotScore++;
-    let lowestHumanScore = humanScore;
-    state.sets[0].forEach(set => { if (set.cards.some(c => !c.faceUp)) lowestHumanScore = Math.min(lowestHumanScore, humanScore - set.cards.filter(c => c.faceUp).length); });
-    if (bestBotScore > lowestHumanScore) return true;
-    if (bestBotScore < lowestHumanScore) return false;
-    const projectedBotHand = state.hands[1].length + Math.min(2, state.deck.length) - 1;
+    const safePoint = Boolean(findOwnSwap('correction') || findOwnSwap('joker') || state.sets[1].some(set => !setNeedsCorrection(set) && set.cards.some(c => !c.faceUp && cardMatches(c, setValue(set)))));
+    const bestBotScore = botScore + Number(safePoint);
+    if (bestBotScore > humanScore) return true;
+    if (bestBotScore < humanScore) return false;
+    const projectedBotHand = state.hands[1].length + Math.min(2, state.deck.length);
     return projectedBotHand >= state.hands[0].length;
   }
   function botTurn() {
-    if (state.over) return; state.botLog = []; state.botTurns++; let discardMove = null, drawMove = null;
-    if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); logBot(`Take ${shortCardLabel(taken)}`); discardMove = { card: taken, sourceRect }; }
+    if (state.over) return; state.botLog = []; state.botTurns++; state.botTakenDiscardId = null; let discardMove = null, drawMove = null;
+    if (botShouldTakeDiscard()) { const sourceRect = $('discardCard').querySelector('.card')?.getBoundingClientRect(), taken = state.discard.pop(); state.hands[1].push(taken); if (state.deck.length > 24) state.botTakenDiscardId = taken.id; logBot(`Take ${shortCardLabel(taken)}`); discardMove = { card: taken, sourceRect }; }
     else { const sourceRect = $('drawPileCard').getBoundingClientRect(), amount = Math.min(2, state.deck.length), cards = []; for (let i = 0; i < amount; i++) { const card = state.deck.pop(); state.hands[1].push(card); cards.push(card); } drawMove = { cards, sourceRect }; logBot(`Draw ${amount}`); if (!state.deck.length) state.finalPlayer = 1; }
     state.phase = 'action'; state.botReport = botReportText(); state.message = 'BOT is choosing an action…'; render();
     if (discardMove?.sourceRect) flyCard(discardMove.card, discardMove.sourceRect, cardSizedRectAt($('botName'), discardMove.sourceRect.width, discardMove.sourceRect.height));
@@ -622,29 +638,34 @@
   function scheduleBotEnd() { state.botReport = botReportText(); state.message = state.finalPlayer === 1 ? 'BOT completed the final action.' : 'BOT is choosing a discard…'; render(); const serial = gameSerial; setTimeout(() => { if (serial !== gameSerial || state.over || state.turn !== 1) return; if (state.finalPlayer === 1) finishGame(); else botEnd(); }, 2000); }
   function botAction() {
     const finalTurn = state.finalPlayer === 1, leading = faceUpCount(1) >= faceUpCount(0);
-    if (state.botChallengeSet) {
-      const setIndex = state.sets[0].indexOf(state.botChallengeSet), hiddenCount = state.botChallengeSet.cards.filter(c => !c.faceUp).length;
-      if (setIndex >= 0 && hiddenCount) { const result = resolveBotChallenge({ setIndex, hiddenIndex: Math.floor(Math.random() * hiddenCount), value: setValue(state.botChallengeSet), continuing: true }); if (result === 'pending') return; if (result) return scheduleBotEnd(); }
-      state.botChallengeSet = null;
-    }
-    const strongChallenge = chooseOpponentChallenge(finalTurn && !leading ? .38 : .66);
-    if (strongChallenge) { state.botChallengeSet = state.sets[0][strongChallenge.setIndex]; const result = resolveBotChallenge(strongChallenge); if (result === 'pending') return; if (result) return scheduleBotEnd(); }
     const correction = findOwnSwap('correction'); if (correction) { performBotSwap(correction); return scheduleBotEnd(); }
+    if (finalTurn) {
+      if (winner() === 1) { state.botChallengeSet = null; return botPass(); }
+      if (botSelfFlip(true)) return;
+      const safeSwap = findOwnSwap('joker'); if (safeSwap) { performBotSwap(safeSwap); return scheduleBotEnd(); }
+      if (continueBotChallenge(.72) || startBotChallenge(.72)) return;
+      return botPass();
+    }
+    if (!leading && (continueBotChallenge(.7) || startBotChallenge(.82))) return;
     if (!finalTurn) {
       const highValuePlan = buildBotSetPlan(true), normalPlan = highValuePlan ? null : buildBotSetPlan(false), plan = highValuePlan || normalPlan;
       const acceptable = plan && (highValuePlan || plan.bluffs < 2 || state.deck.length < 20 || !state.sets[1].length);
       if (acceptable && !botShouldDelaySet(plan) && botPlaceSet(plan)) return scheduleBotEnd();
+      const safePlan = (!plan || plan.bluffs) ? buildBotSetPlan(false, true) : null;
+      if (safePlan && !botShouldDelaySet(safePlan) && botPlaceSet(safePlan)) return scheduleBotEnd();
     }
-    const moderateChallenge = chooseOpponentChallenge(finalTurn && !leading ? .25 : .52); if (moderateChallenge) { state.botChallengeSet = state.sets[0][moderateChallenge.setIndex]; const result = resolveBotChallenge(moderateChallenge); if (result === 'pending') return; if (result) return scheduleBotEnd(); }
     if (botSelfFlip()) return;
     const jokerRetrieval = findOwnSwap('joker'); if (jokerRetrieval) { performBotSwap(jokerRetrieval); return scheduleBotEnd(); }
     const trickSwap = Math.random() < .16 ? findOwnSwap('trick') : null; if (trickSwap) { performBotSwap(trickSwap); return scheduleBotEnd(); }
-    logBot('Pass'); scheduleBotEnd();
+    const threshold = leading ? .84 : .7;
+    if (continueBotChallenge(threshold) || startBotChallenge(threshold)) return;
+    botPass();
   }
-  function botDiscardIndex() {
+  function botDiscardIndex(hand = state.hands[1], protectedId = null) {
     let bestIndex = 0, bestScore = -Infinity;
-    const counts = {}; state.hands[1].forEach(c => { if (!c.joker) counts[c.value] = (counts[c.value] || 0) + 1; });
-    state.hands[1].forEach((c, index) => {
+    const counts = {}; hand.forEach(c => { if (!c.joker) counts[c.value] = (counts[c.value] || 0) + 1; });
+    hand.forEach((c, index) => {
+      if (c.id === protectedId) return;
       let score = c.joker ? -100 : 8 - (counts[c.value] || 0) * 3;
       state.sets[0].forEach(set => { if (setValue(set) === c.value && opponentSetRisk(set) > .4) score -= 7; });
       state.sets[1].forEach(set => { if (setValue(set) === c.value && set.cards.some(x => !x.faceUp && !cardMatches(x, c.value))) score -= 9; });
@@ -655,7 +676,7 @@
   function botEnd() {
     if (state.finalPlayer === 1) return finishGame();
     if (!state.hands[1].length) return finishBotTurn();
-    const serial = gameSerial, index = botDiscardIndex(), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
+    const serial = gameSerial, index = botDiscardIndex(state.hands[1], state.botTakenDiscardId), discarded = state.hands[1][index], targetRect = $('discardCard').querySelector('.card')?.getBoundingClientRect() || $('discardCard').getBoundingClientRect();
     const sourceRect = cardSizedRectAt($('botName'), targetRect.width, targetRect.height);
     state.message = 'BOT is discarding…'; render();
     flyCard(discarded, sourceRect, targetRect, null, () => { if (serial !== gameSerial || state.over || state.turn !== 1) return; state.hands[1].splice(index, 1); state.discard.push(discarded); rememberCard(discarded); logBot(`Discard ${shortCardLabel(discarded)}`); finishBotTurn(); });
